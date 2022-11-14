@@ -127,6 +127,10 @@ private:
 
   void filter(
     const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output) override;
+  
+
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr debug_ground_pcl_pub_;
+  
 
   tf2_ros::Buffer tf_buffer_{get_clock()};
   tf2_ros::TransformListener tf_listener_{tf_buffer_};
@@ -203,7 +207,8 @@ private:
     pcl::PointIndices & out_no_ground_indices);
   void classifyPointCloudGridScan(
     std::vector<PointCloudRefVector> & in_radial_ordered_clouds,
-    pcl::PointIndices & out_no_ground_indices);
+    pcl::PointIndices & out_no_ground_indices,
+    pcl::PointIndices & out_ground_indices);
   /*!
    * Returns the resulting complementary PointCloud, one with the points kept
    * and the other removed as indicated in the indices

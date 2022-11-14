@@ -63,6 +63,8 @@ ScanGroundFilterComponent::ScanGroundFilterComponent(const rclcpp::NodeOptions &
     grid_mode_switch_angle_rad_ = std::atan2(grid_mode_switch_radius_, virtual_lidar_z_);
   }
 
+  debug_ground_pcl_pub_ = create_publisher<sensor_msgs::msg::PointCloud2>("debug/ground_pointcloud",rclcpp::SensorDataQoS());
+
   using std::placeholders::_1;
   set_param_res_ = this->add_on_set_parameters_callback(
     std::bind(&ScanGroundFilterComponent::onParameter, this, _1));
@@ -264,7 +266,8 @@ void ScanGroundFilterComponent::checkBreakGndGrid(
 }
 void ScanGroundFilterComponent::classifyPointCloudGridScan(
   std::vector<PointCloudRefVector> & in_radial_ordered_clouds,
-  pcl::PointIndices & out_no_ground_indices)
+  pcl::PointIndices & out_no_ground_indices,
+  pcl::PointIndices & out_ground_indices)
 {
   out_no_ground_indices.indices.clear();
   for (size_t i = 0; i < in_radial_ordered_clouds.size(); i++) {
@@ -309,6 +312,7 @@ void ScanGroundFilterComponent::classifyPointCloudGridScan(
         abs(p->orig_point->z) < non_ground_height_threshold_local) {
         ground_cluster.addPoint(p->radius, p->orig_point->z);
         p->point_state = PointLabel::GROUND;
+        out_ground_indices.indices.push_back(p->orig_index);
         initialized_first_gnd_grid = static_cast<bool>(p->grid_id - prev_p->grid_id);
         prev_p = p;
         continue;
@@ -383,6 +387,9 @@ void ScanGroundFilterComponent::classifyPointCloudGridScan(
       }
       if (p->point_state == PointLabel::NON_GROUND) {
         out_no_ground_indices.indices.push_back(p->orig_index);
+      }
+      else if  (p->point_state == PointLabel::GROUND){
+        out_ground_indices.indices.push_back(p->orig_index);
       }
       prev_p = p;
     }
@@ -523,18 +530,30 @@ void ScanGroundFilterComponent::filter(
   std::vector<PointCloudRefVector> radial_ordered_points;
 
   pcl::PointIndices no_ground_indices;
+  pcl::PointIndices ground_indices;
   pcl::PointCloud<pcl::PointXYZ>::Ptr no_ground_cloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
   no_ground_cloud_ptr->points.reserve(current_sensor_cloud_ptr->points.size());
 
   if (elevation_grid_mode_) {
     convertPointcloudGridScan(current_sensor_cloud_ptr, radial_ordered_points);
-    classifyPointCloudGridScan(radial_ordered_points, no_ground_indices);
+    classifyPointCloudGridScan(radial_ordered_points, no_ground_indices,ground_indices);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr ground_cloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+    ground_cloud_ptr->points.reserve(current_sensor_cloud_ptr->points.size());
+    extractObjectPoints(current_sensor_cloud_ptr, ground_indices, ground_cloud_ptr);
+
+    sensor_msgs::msg::PointCloud2 ground_pcl_msg;
+    pcl::toROSMsg(*ground_cloud_ptr, ground_pcl_msg);
+    ground_pcl_msg.header = input->header;
+    debug_ground_pcl_pub_->publish(ground_pcl_msg);
+
   } else {
     convertPointcloud(current_sensor_cloud_ptr, radial_ordered_points);
     classifyPointCloud(radial_ordered_points, no_ground_indices);
   }
 
   extractObjectPoints(current_sensor_cloud_ptr, no_ground_indices, no_ground_cloud_ptr);
+
+
 
   auto no_ground_cloud_msg_ptr = std::make_shared<PointCloud2>();
   pcl::toROSMsg(*no_ground_cloud_ptr, *no_ground_cloud_msg_ptr);
