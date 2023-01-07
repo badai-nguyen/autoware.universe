@@ -59,11 +59,13 @@ struct PointXYZIRADRT
   float x{0.0F};
   float y{0.0F};
   float z{0.0F};
+  char padding1[4];
   float intensity{0.0F};
   uint16_t ring{0U};
   float azimuth{0.0F};
   float distance{0.0F};
   uint8_t return_type{0U};
+  char padding2[7];
   double time_stamp{0.0};
   friend bool operator==(const PointXYZIRADRT & p1, const PointXYZIRADRT & p2) noexcept
   {
