@@ -208,6 +208,7 @@ void DualReturnOutlierFilterComponent::filter(
               deleted_azimuths.push_back(iter->azimuth < 0.f ? 0.f : iter->azimuth);
               noise_output->points.push_back(*iter);
               deleted_distances.push_back(iter->distance);
+              temp_segment.points.push_back(*iter);
             }
             break;
           }
@@ -224,61 +225,81 @@ void DualReturnOutlierFilterComponent::filter(
     std::vector<int> noise_frequency(horizontal_bins, 0);
     uint current_deleted_index = 0;
     uint current_temp_segment_index = 0;
-    for (uint i = 0; i < noise_frequency.size() - 1; i++) {
-      if (deleted_azimuths.size() == 0) {
+    for (size_t temp_deleted_index = 0; temp_deleted_index < deleted_azimuths.size();++temp_deleted_index){
+      float curr_azimuth = deleted_azimuths[temp_deleted_index];
+      if (curr_azimuth < min_azimuth && curr_azimuth > max_azimuth){
         continue;
       }
-      while ((uint)deleted_azimuths[current_deleted_index] <
-               ((i + static_cast<uint>(min_azimuth / horizontal_res) + 1) * horizontal_res) &&
-             current_deleted_index < (deleted_azimuths.size() - 1)) {
-        noise_frequency[i] = noise_frequency[i] + 1;
-        current_deleted_index++;
-      }
-      if (temp_segment.points.size() > 0) {
-        while ((temp_segment.points[current_temp_segment_index].azimuth < 0.f
-                  ? 0.f
-                  : temp_segment.points[current_temp_segment_index].azimuth) <
-                 ((i + 1 + static_cast<uint>(min_azimuth / horizontal_res)) * horizontal_res) &&
-               current_temp_segment_index < (temp_segment.points.size() - 1)) {
-          if (noise_frequency[i] < weak_first_local_noise_threshold_) {
-            pcl_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-          } else {
-            switch (roi_mode_map_[roi_mode_]) {
-              case 1: {
-                if (
-                  temp_segment.points[current_temp_segment_index].x < x_max_ &&
-                  temp_segment.points[current_temp_segment_index].x > x_min_ &&
-                  temp_segment.points[current_temp_segment_index].y > y_max_ &&
-                  temp_segment.points[current_temp_segment_index].y < y_min_ &&
-                  temp_segment.points[current_temp_segment_index].z < z_max_ &&
-                  temp_segment.points[current_temp_segment_index].z > z_min_) {
-                  noise_frequency[i] = noise_frequency[i] + 1;
-                  noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-                }
-                break;
-              }
-              case 2: {
-                if (
-                  temp_segment.points[current_temp_segment_index].azimuth < max_azimuth &&
-                  temp_segment.points[current_temp_segment_index].azimuth > min_azimuth &&
-                  temp_segment.points[current_temp_segment_index].distance < max_distance_) {
-                  noise_frequency[i] = noise_frequency[i] + 1;
-                  noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-                }
-                break;
-              }
-              default: {
-                noise_frequency[i] = noise_frequency[i] + 1;
-                noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-                break;
-              }
-            }
-          }
-          current_temp_segment_index++;
-          frequency_image.at<uchar>(ring_id, i) = noise_frequency[i];
-        }
-      }
+      int horizon_i = static_cast<uint32_t>((curr_azimuth - min_azimuth) / horizontal_res);
+      horizon_i = horizon_i < 0 ? 0: horizon_i;
+      horizon_i = horizon_i >= horizontal_bins ? horizontal_bins - 1: horizon_i;
+      noise_frequency[horizon_i] = noise_frequency[horizon_i] < 100 ? noise_frequency[horizon_i] + 1 : 100;
     }
+
+    for (size_t temp_segment_index = 0; temp_segment_index < temp_segment.points.size();++temp_segment_index){
+      float curr_azimuth = temp_segment.points[temp_segment_index].azimuth;
+      if (curr_azimuth < min_azimuth && curr_azimuth > max_azimuth){
+        continue;
+      }
+      int horizon_i = static_cast<uint32_t>((curr_azimuth - min_azimuth) / horizontal_res);
+      horizon_i = horizon_i < 0 ? 0: horizon_i;
+      horizon_i = horizon_i >= horizontal_bins ? horizontal_bins - 1: horizon_i;
+      noise_frequency[horizon_i] = noise_frequency[horizon_i] < 100 ? noise_frequency[horizon_i] + 1 : 100;
+    }
+    for (uint32_t horizontal_i = 0; horizontal_i < horizontal_bins; ++horizontal_i){
+      frequency_image.at<uchar>(ring_id, horizontal_i) = noise_frequency[horizontal_i] < 100 ? noise_frequency[horizontal_i] : 100  ;
+    }
+
+    // for (uint i = 0; i < noise_frequency.size() - 1; i++) {
+    //   if (deleted_azimuths.size() == 0) {
+    //     continue;
+    //   }
+    //   while ((uint)deleted_azimuths[current_deleted_index] <
+    //            ((i + static_cast<uint>(min_azimuth / horizontal_res) + 1) * horizontal_res) &&
+    //          current_deleted_index < (deleted_azimuths.size() - 1)) {
+    //     noise_frequency[i] = noise_frequency[i] + 1;
+    //     current_deleted_index++;
+    //   }
+    //   if (temp_segment.points.size() > 0) {
+    //     for (int )
+    //     // while ((temp_segment.points[current_temp_segment_index].azimuth < 0.f? 0.f: temp_segment.points[current_temp_segment_index].azimuth) <
+    //     //          ((i + 1 + static_cast<uint>(min_azimuth / horizontal_res)) * horizontal_res) &&
+    //     //        current_temp_segment_index < (temp_segment.points.size() - 1)) {
+    //     //   switch (roi_mode_map_[roi_mode_]) {
+    //     //     case 1: {
+    //     //       if (
+    //     //         temp_segment.points[current_temp_segment_index].x < x_max_ &&
+    //     //         temp_segment.points[current_temp_segment_index].x > x_min_ &&
+    //     //         temp_segment.points[current_temp_segment_index].y > y_max_ &&
+    //     //         temp_segment.points[current_temp_segment_index].y < y_min_ &&
+    //     //         temp_segment.points[current_temp_segment_index].z < z_max_ &&
+    //     //         temp_segment.points[current_temp_segment_index].z > z_min_) {
+    //     //         noise_frequency[i] = noise_frequency[i] + 1;
+    //     //         noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
+    //     //       }
+    //     //       break;
+    //     //     }
+    //     //     case 2: {
+    //     //       if (
+    //     //         temp_segment.points[current_temp_segment_index].azimuth < max_azimuth &&
+    //     //         temp_segment.points[current_temp_segment_index].azimuth > min_azimuth &&
+    //     //         temp_segment.points[current_temp_segment_index].distance < max_distance_) {
+    //     //         noise_frequency[i] = noise_frequency[i] + 1;
+    //     //         noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
+    //     //       }
+    //     //       break;
+    //     //     }
+    //     //     default: {
+    //     //       noise_frequency[i] = noise_frequency[i] + 1;
+    //     //       noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
+    //     //       break;
+    //     //     }
+    //     //   }
+    //     //   current_temp_segment_index++;
+    //     //   frequency_image.at<uchar>(ring_id, i) = noise_frequency[i] < 10 ? noise_frequency[i] : 10 ;
+    //     // }
+    //   }
+    // }
   }
 
   // Ring outlier filter for normal points
@@ -324,7 +345,7 @@ void DualReturnOutlierFilterComponent::filter(
   // Visualization of histogram
   cv::Mat frequency_image_colorized;
   // Multiply bins by four to get pretty colours
-  cv::applyColorMap(frequency_image * 4, frequency_image_colorized, cv::COLORMAP_JET);
+  cv::applyColorMap(frequency_image * 20, frequency_image_colorized, cv::COLORMAP_JET);
   sensor_msgs::msg::Image::SharedPtr frequency_image_msg =
     cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", frequency_image_colorized).toImageMsg();
   frequency_image_msg->header = input->header;
