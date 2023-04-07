@@ -43,6 +43,7 @@ class PointcloudMapFilterPipeline:
             "map_update_distance_threshold"
         ]
         self.map_loader_radius = self.pointcloud_map_filter_param["map_loader_radius"]
+        self.debug = self.pointcloud_map_filter_param["debug"]
 
     def create_pipeline(self):
         if self.use_down_sample_filter:
@@ -72,6 +73,7 @@ class PointcloudMapFilterPipeline:
                         "use_dynamic_map_loading": self.use_dynamic_map_loading,
                         "map_update_distance_threshold": self.map_update_distance_threshold,
                         "map_loader_radius": self.map_loader_radius,
+                        "debug": self.debug,
                         "input_frame": "map",
                     }
                 ],
