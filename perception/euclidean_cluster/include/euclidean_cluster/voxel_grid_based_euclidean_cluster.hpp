@@ -33,8 +33,8 @@ public:
     bool use_height, int min_cluster_size, int max_cluster_size, float tolerance,
     float voxel_leaf_size, int min_points_number_per_voxel);
   bool cluster(
-    const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
-    std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters) override;
+    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr & pointcloud,
+    std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters) override;
   void setVoxelLeafSize(float voxel_leaf_size) { voxel_leaf_size_ = voxel_leaf_size; }
   void setTolerance(float tolerance) { tolerance_ = tolerance; }
   void setMinPointsNumberPerVoxel(int min_points_number_per_voxel)
@@ -43,7 +43,7 @@ public:
   }
 
 private:
-  pcl::VoxelGrid<pcl::PointXYZ> voxel_grid_;
+  pcl::VoxelGrid<pcl::PointXYZI> voxel_grid_;
   float tolerance_;
   float voxel_leaf_size_;
   int min_points_number_per_voxel_;
