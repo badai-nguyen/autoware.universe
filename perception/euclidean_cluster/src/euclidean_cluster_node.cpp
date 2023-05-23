@@ -44,11 +44,11 @@ void EuclideanClusterNode::onPointCloud(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg)
 {
   // convert ros to pcl
-  pcl::PointCloud<pcl::PointXYZ>::Ptr raw_pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr raw_pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*input_msg, *raw_pointcloud_ptr);
 
   // clustering
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> clusters;
+  std::vector<pcl::PointCloud<pcl::PointXYZI>> clusters;
   cluster_->cluster(raw_pointcloud_ptr, clusters);
 
   // build output msg
@@ -61,8 +61,11 @@ void EuclideanClusterNode::onPointCloud(
     return;
   }
   {
+    sensor_msgs::msg::PointCloud2 cluster_pub;
     sensor_msgs::msg::PointCloud2 debug;
-    convertObjectMsg2SensorMsg(output, debug);
+    pcl::toROSMsg(clusters.at(0), debug);
+    debug.header = input_msg->header;
+    // convertObjectMsg2SensorMsg(output, debug);
     debug_pub_->publish(debug);
   }
 }

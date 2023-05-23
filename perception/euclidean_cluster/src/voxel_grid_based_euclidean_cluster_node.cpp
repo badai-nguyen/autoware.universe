@@ -48,11 +48,11 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg)
 {
   // convert ros to pcl
-  pcl::PointCloud<pcl::PointXYZ>::Ptr raw_pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr raw_pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*input_msg, *raw_pointcloud_ptr);
 
   // clustering
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> clusters;
+  std::vector<pcl::PointCloud<pcl::PointXYZI>> clusters;
   cluster_->cluster(raw_pointcloud_ptr, clusters);
 
   // build output msg
@@ -65,6 +65,20 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
     return;
   }
   {
+    // pcl::PointCloud<pcl::PointXYZI> saving_cluster_pcd;
+
+    // saving_cluster_pcd.width = raw_pointcloud_ptr->size();
+    // saving_cluster_pcd.height = 1;
+    // saving_cluster_pcd.is_dense = false;
+    // saving_cluster_pcd.points.resize(raw_pointcloud_ptr->size());
+    // // saving_cluster_pcd.reserve(raw_pointcloud_ptr->size());
+    // for (auto icluster = clusters.begin(); icluster < clusters.end() ; ++icluster){
+    //   for (auto point = icluster->begin(); point < icluster->end(); ++point){
+    //     saving_cluster_pcd.push_back(*point);
+    //   }
+    // }
+    // pcl::io::savePCDFileASCII( "/media/autoware/MileeSSD/tasks/T4PB-24940_adverse_weather/test.pcd",saving_cluster_pcd);
+    // sensor_msgs::msg::PointCloud2 cluster_pub;
     sensor_msgs::msg::PointCloud2 debug;
     convertObjectMsg2SensorMsg(output, debug);
     debug_pub_->publish(debug);

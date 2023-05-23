@@ -35,15 +35,15 @@ EuclideanCluster::EuclideanCluster(
 }
 
 bool EuclideanCluster::cluster(
-  const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters)
+  const pcl::PointCloud<pcl::PointXYZI>::ConstPtr & pointcloud,
+  std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters)
 {
   // convert 2d pointcloud
-  pcl::PointCloud<pcl::PointXYZ>::ConstPtr pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::ConstPtr pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   if (!use_height_) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud_2d_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr pointcloud_2d_ptr(new pcl::PointCloud<pcl::PointXYZI>);
     for (const auto & point : pointcloud->points) {
-      pcl::PointXYZ point2d;
+      pcl::PointXYZI point2d;
       point2d.x = point.x;
       point2d.y = point.y;
       point2d.z = 0.0;
@@ -55,12 +55,12 @@ bool EuclideanCluster::cluster(
   }
 
   // create tree
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+  pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
   tree->setInputCloud(pointcloud_ptr);
 
   // clustering
   std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<pcl::PointXYZ> pcl_euclidean_cluster;
+  pcl::EuclideanClusterExtraction<pcl::PointXYZI> pcl_euclidean_cluster;
   pcl_euclidean_cluster.setClusterTolerance(tolerance_);
   pcl_euclidean_cluster.setMinClusterSize(min_cluster_size_);
   pcl_euclidean_cluster.setMaxClusterSize(max_cluster_size_);
@@ -71,7 +71,7 @@ bool EuclideanCluster::cluster(
   // build output
   {
     for (const auto & cluster : cluster_indices) {
-      pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+      pcl::PointCloud<pcl::PointXYZI>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZI>);
       for (const auto & point_idx : cluster.indices) {
         cloud_cluster->points.push_back(pointcloud->points[point_idx]);
       }
