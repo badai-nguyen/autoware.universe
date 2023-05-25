@@ -19,6 +19,31 @@
 #include <tier4_perception_msgs/msg/detected_object_with_feature.hpp>
 #include <tier4_perception_msgs/msg/detected_objects_with_feature.hpp>
 
+float Average(std::vector<float> v)
+{
+  if (v.size() == 0) {
+    return 0.0;
+  }
+  float avg = 0.0;
+  for (size_t i = 0; i < v.size(); ++i) {
+    avg += v[i];
+  }
+  return avg / static_cast<float>(v.size());
+}
+
+float Deviation(std::vector<float> v)
+{
+  if (v.size() == 0) {
+    return 0.0;
+  }
+  float avg = Average(v);
+  float E = 0.0;
+  for (size_t i = 0; i < v.size(); ++i) {
+    E += (v[i] - avg) * (v[i] - avg);
+  }
+  return std::sqrt(E / static_cast<float>(v.size()));
+}
+
 namespace euclidean_cluster
 {
 geometry_msgs::msg::Point getCentroid(const sensor_msgs::msg::PointCloud2 & pointcloud)
@@ -74,10 +99,11 @@ void convertObjectMsg2SensorMsg(
   }
   sensor_msgs::PointCloud2Modifier modifier(output);
   modifier.setPointCloud2Fields(
-    6, "x", 1, sensor_msgs::msg::PointField::FLOAT32, "y", 1, sensor_msgs::msg::PointField::FLOAT32,
-    "z", 1, sensor_msgs::msg::PointField::FLOAT32, "intensity", 1, sensor_msgs::msg::PointField::FLOAT32, 
-    "rgb", 1, sensor_msgs::msg::PointField::FLOAT32, 
-    "cluster",1,sensor_msgs::msg::PointField::UINT32);
+    7, "x", 1, sensor_msgs::msg::PointField::FLOAT32, "y", 1, sensor_msgs::msg::PointField::FLOAT32,
+    "z", 1, sensor_msgs::msg::PointField::FLOAT32, "intensity", 1,
+    sensor_msgs::msg::PointField::FLOAT32, "rgb", 1, sensor_msgs::msg::PointField::FLOAT32,
+    "cluster", 1, sensor_msgs::msg::PointField::UINT32, "intensitydistribution", 1,
+    sensor_msgs::msg::PointField::UINT8);
   modifier.resize(pointcloud_size);
 
   sensor_msgs::PointCloud2Iterator<float> iter_out_x(output, "x");
@@ -88,18 +114,34 @@ void convertObjectMsg2SensorMsg(
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_out_g(output, "g");
   sensor_msgs::PointCloud2Iterator<uint8_t> iter_out_b(output, "b");
   sensor_msgs::PointCloud2Iterator<uint32_t> iter_out_cluster(output, "cluster");
+  sensor_msgs::PointCloud2Iterator<uint8_t> iter_out_intensitydistribution(
+    output, "intensitydistribution");
 
   constexpr uint8_t color_data[] = {200, 0,   0, 0,   200, 0,   0, 0,   200,
                                     200, 200, 0, 200, 0,   200, 0, 200, 200};  // 6 pattern
   for (size_t i = 0; i < input.feature_objects.size(); ++i) {
     const auto & feature_object = input.feature_objects.at(i);
+    std::vector<float> intensity_vec;
+
     sensor_msgs::PointCloud2ConstIterator<float> iter_in_x(feature_object.feature.cluster, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_in_y(feature_object.feature.cluster, "y");
     sensor_msgs::PointCloud2ConstIterator<float> iter_in_z(feature_object.feature.cluster, "z");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_in_intensity(feature_object.feature.cluster, "intensity");
-    for (; iter_in_x != iter_in_x.end(); ++iter_in_x, ++iter_in_y, ++iter_in_z, ++iter_in_intensity, ++iter_out_x,
-                                         ++iter_out_y, ++iter_out_z, ++iter_out_intensity, ++iter_out_r, ++iter_out_g,
-                                         ++iter_out_b, ++iter_out_cluster) {
+    sensor_msgs::PointCloud2ConstIterator<float> iter_in_intensity(
+      feature_object.feature.cluster, "intensity");
+
+    for (; iter_in_intensity != iter_in_intensity.end(); ++iter_in_intensity) {
+      intensity_vec.push_back(*iter_in_intensity);
+    }
+
+    float intensity_avg = Average(intensity_vec) * 5;    // for good rendering
+    float intensity_std = Deviation(intensity_vec) * 5;  // for good rendering
+    uint8_t avg_std = static_cast<uint8_t>(
+      intensity_avg + intensity_std < 255.0 ? intensity_avg + intensity_std : 255);
+
+    for (; iter_in_x != iter_in_x.end();
+         ++iter_in_x, ++iter_in_y, ++iter_in_z, ++iter_in_intensity, ++iter_out_x, ++iter_out_y,
+         ++iter_out_z, ++iter_out_intensity, ++iter_out_r, ++iter_out_g, ++iter_out_b,
+         ++iter_out_cluster, ++iter_out_intensitydistribution) {
       *iter_out_x = *iter_in_x;
       *iter_out_y = *iter_in_y;
       *iter_out_z = *iter_in_z;
@@ -108,6 +150,7 @@ void convertObjectMsg2SensorMsg(
       *iter_out_g = color_data[3 * (i % 6) + 1];
       *iter_out_b = color_data[3 * (i % 6) + 2];
       *iter_out_cluster = i;
+      *iter_out_intensitydistribution = intensity_avg + intensity_std;
     }
   }
 

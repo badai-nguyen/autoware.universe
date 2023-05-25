@@ -77,7 +77,8 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
     //     saving_cluster_pcd.push_back(*point);
     //   }
     // }
-    // pcl::io::savePCDFileASCII( "/media/autoware/MileeSSD/tasks/T4PB-24940_adverse_weather/test.pcd",saving_cluster_pcd);
+    // pcl::io::savePCDFileASCII(
+    // "/media/autoware/MileeSSD/tasks/T4PB-24940_adverse_weather/test.pcd",saving_cluster_pcd);
     // sensor_msgs::msg::PointCloud2 cluster_pub;
     sensor_msgs::msg::PointCloud2 debug;
     convertObjectMsg2SensorMsg(output, debug);
