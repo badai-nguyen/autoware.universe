@@ -92,8 +92,7 @@ void RingOutlierFilterComponent::filter(
       }
       if (isCluster(input_ptr, tmp_indices)) {
         for (const auto & tmp_idx : tmp_indices) {
-          PointXYZIRADRT * tmp_pt =
-            reinterpret_cast<PointXYZIRADRT *>(&input_ptr->data[tmp_idx]);
+          PointXYZIRADRT * tmp_pt = reinterpret_cast<PointXYZIRADRT *>(&input_ptr->data[tmp_idx]);
           output_modifier.push_back(PointXYZI{tmp_pt->x, tmp_pt->y, tmp_pt->z, tmp_pt->intensity});
         }
       }
@@ -104,9 +103,8 @@ void RingOutlierFilterComponent::filter(
     }
     if (isCluster(input_ptr, tmp_indices)) {
       for (const auto & tmp_idx : tmp_indices) {
-          PointXYZIRADRT * tmp_pt =
-            reinterpret_cast<PointXYZIRADRT *>(&input_ptr->data[tmp_idx]);
-          output_modifier.push_back(PointXYZI{tmp_pt->x, tmp_pt->y, tmp_pt->z, tmp_pt->intensity});
+        PointXYZIRADRT * tmp_pt = reinterpret_cast<PointXYZIRADRT *>(&input_ptr->data[tmp_idx]);
+        output_modifier.push_back(PointXYZI{tmp_pt->x, tmp_pt->y, tmp_pt->z, tmp_pt->intensity});
       }
     }
     tmp_indices.clear();
