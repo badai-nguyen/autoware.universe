@@ -30,9 +30,8 @@ TEST(PointEquality, PointXYZI)
 TEST(PointEquality, PointXYZIRADRT)
 {
   using autoware_point_types::PointXYZIRADRT;
-
-  PointXYZIRADRT pt0{0, 1, 2, 3, 4, 5, 6, 7, 8};
-  PointXYZIRADRT pt1{0, 1, 2, 3, 4, 5, 6, 7, 8};
+  PointXYZIRADRT pt0{0, 1, 2, {}, 3, 4, 5, 6, 7, {}, 8};
+  PointXYZIRADRT pt1{0, 1, 2, {}, 3, 4, 5, 6, 7, {}, 8};
   EXPECT_EQ(pt0, pt1);
 }
 
