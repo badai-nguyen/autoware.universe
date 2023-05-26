@@ -83,9 +83,11 @@ void ApproximateDownsampleFilterComponent::filter(
   }
   pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_input(new pcl::PointCloud<pcl::PointXYZ>);
   pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_output(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_input(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_output(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*input, *pcl_input);
   pcl_output->points.reserve(pcl_input->points.size());
-  pcl::VoxelGridNearestCentroid<pcl::PointXYZ> filter;
+  pcl::VoxelGridNearestCentroid<pcl::PointXYZI> filter;
   filter.setInputCloud(pcl_input);
   filter.setLeafSize(voxel_size_x_, voxel_size_y_, voxel_size_z_);
   filter.filter(*pcl_output);
