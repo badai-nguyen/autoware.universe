@@ -78,11 +78,11 @@ void VoxelGridDownsampleFilterComponent::filter(
   const PointCloud2ConstPtr & input, const IndicesPtr & /*indices*/, PointCloud2 & output)
 {
   std::scoped_lock lock(mutex_);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_input(new pcl::PointCloud<pcl::PointXYZ>);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_output(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_input(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_output(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*input, *pcl_input);
   pcl_output->points.reserve(pcl_input->points.size());
-  pcl::VoxelGrid<pcl::PointXYZ> filter;
+  pcl::VoxelGrid<pcl::PointXYZI> filter;
   filter.setInputCloud(pcl_input);
   // filter.setSaveLeafLayout(true);
   filter.setLeafSize(voxel_size_x_, voxel_size_y_, voxel_size_z_);
