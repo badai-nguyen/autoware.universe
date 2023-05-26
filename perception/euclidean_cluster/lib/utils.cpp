@@ -70,9 +70,17 @@ void convertPointCloudClusters2Msg(
   const std_msgs::msg::Header & header,
   const std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters,
   tier4_perception_msgs::msg::DetectedObjectsWithFeature & msg)
-{
+{   
   msg.header = header;
   for (const auto & cluster : clusters) {
+
+    std::vector<float> intensity_vec;
+    for (size_t i = 0; i < cluster.size(); ++i){
+      intensity_vec.push_back(cluster.at(i).intensity);
+    }
+    float intensity_avg = Average(intensity_vec)/255.;
+    intensity_avg = intensity_avg< 1.0 ? intensity_avg : 1.0;
+
     sensor_msgs::msg::PointCloud2 ros_pointcloud;
     tier4_perception_msgs::msg::DetectedObjectWithFeature feature_object;
     pcl::toROSMsg(cluster, ros_pointcloud);
@@ -82,9 +90,12 @@ void convertPointCloudClusters2Msg(
       getCentroid(ros_pointcloud);
     autoware_auto_perception_msgs::msg::ObjectClassification classification;
     classification.label = autoware_auto_perception_msgs::msg::ObjectClassification::UNKNOWN;
-    classification.probability = 1.0f;
+    classification.probability = intensity_avg;
+    // if (intensity_avg > 0.01){
     feature_object.object.classification.emplace_back(classification);
     msg.feature_objects.push_back(feature_object);
+    // }
+    
   }
 }
 void convertObjectMsg2SensorMsg(
