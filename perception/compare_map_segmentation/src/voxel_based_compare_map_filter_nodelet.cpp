@@ -67,13 +67,14 @@ void VoxelBasedCompareMapFilterComponent::filter(
 {
   std::scoped_lock lock(mutex_);
   stop_watch_ptr_->toc("processing_time", true);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_input(new pcl::PointCloud<pcl::PointXYZ>);
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_output(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_input(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_output(new pcl::PointCloud<pcl::PointXYZI>);
   pcl::fromROSMsg(*input, *pcl_input);
   pcl_output->points.reserve(pcl_input->points.size());
   for (size_t i = 0; i < pcl_input->points.size(); ++i) {
-    const pcl::PointXYZ point = pcl_input->points.at(i);
-    if (voxel_grid_map_loader_->is_close_to_map(point, distance_threshold_)) {
+    const pcl::PointXYZI point = pcl_input->points.at(i);
+    if (voxel_grid_map_loader_->is_close_to_map(
+          pcl::PointXYZ(point.x, point.y, point.z), distance_threshold_)) {
       continue;
     }
     pcl_output->points.push_back(point);
