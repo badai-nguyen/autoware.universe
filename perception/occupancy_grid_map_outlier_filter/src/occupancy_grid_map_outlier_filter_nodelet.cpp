@@ -242,12 +242,12 @@ void OccupancyGridMapOutlierFilterComponent::splitPointCloudFrontBack(
   PclPointCloud tmp_behind_pc;
   PclPointCloud tmp_front_pc;
   for (sensor_msgs::PointCloud2ConstIterator<float> x(*input_pc, "x"), y(*input_pc, "y"),
-       z(*input_pc, "z");
-       x != x.end(); ++x, ++y, ++z) {
+       z(*input_pc, "z"), intensity(*input_pc, "intensity");
+       x != x.end(); ++x, ++y, ++z, ++intensity) {
     if (*x < 0.0) {
-      tmp_behind_pc.push_back(pcl::PointXYZ(*x, *y, *z));
+      tmp_behind_pc.push_back(pcl::PointXYZI(*x, *y, *z, *intensity));
     } else {
-      tmp_front_pc.push_back(pcl::PointXYZ(*x, *y, *z));
+      tmp_front_pc.push_back(pcl::PointXYZI(*x, *y, *z, *intensity));
     }
   }
   pcl::toROSMsg(tmp_front_pc, front_pc);
@@ -338,7 +338,7 @@ void OccupancyGridMapOutlierFilterComponent::filterByOccupancyGridMap(
         low_confidence.push_back(pcl::PointXYZI(*x, *y, *z, *intensity));
       }
     } else {
-      out_ogm.push_back(pcl::PointXYZ(*x, *y, *z));
+      out_ogm.push_back(pcl::PointXYZI(*x, *y, *z, *intensity));
     }
   }
 }
