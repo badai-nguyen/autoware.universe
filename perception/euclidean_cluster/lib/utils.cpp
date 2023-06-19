@@ -70,16 +70,15 @@ void convertPointCloudClusters2Msg(
   const std_msgs::msg::Header & header,
   const std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters,
   tier4_perception_msgs::msg::DetectedObjectsWithFeature & msg)
-{   
+{
   msg.header = header;
   for (const auto & cluster : clusters) {
-
     std::vector<float> intensity_vec;
-    for (size_t i = 0; i < cluster.size(); ++i){
+    for (size_t i = 0; i < cluster.size(); ++i) {
       intensity_vec.push_back(cluster.at(i).intensity);
     }
-    float intensity_avg = Average(intensity_vec)/255.;
-    intensity_avg = intensity_avg< 1.0 ? intensity_avg : 1.0;
+    float intensity_avg = Average(intensity_vec) / 255.;
+    intensity_avg = intensity_avg < 1.0 ? intensity_avg : 1.0;
 
     sensor_msgs::msg::PointCloud2 ros_pointcloud;
     tier4_perception_msgs::msg::DetectedObjectWithFeature feature_object;
@@ -95,7 +94,6 @@ void convertPointCloudClusters2Msg(
     feature_object.object.classification.emplace_back(classification);
     msg.feature_objects.push_back(feature_object);
     // }
-    
   }
 }
 void convertObjectMsg2SensorMsg(
@@ -140,14 +138,14 @@ void convertObjectMsg2SensorMsg(
     sensor_msgs::PointCloud2ConstIterator<float> iter_in_intensity(
       feature_object.feature.cluster, "intensity");
 
-    for (; iter_in_intensity != iter_in_intensity.end(); ++iter_in_intensity) {
-      intensity_vec.push_back(*iter_in_intensity);
-    }
+    // for (; iter_in_intensity != iter_in_intensity.end(); ++iter_in_intensity) {
+    //   intensity_vec.push_back(*iter_in_intensity);
+    // }
 
-    float intensity_avg = Average(intensity_vec) * 5;    // for good rendering
-    float intensity_std = Deviation(intensity_vec) * 5;  // for good rendering
-    uint8_t avg_std = static_cast<uint8_t>(
-      intensity_avg + intensity_std < 255.0 ? intensity_avg + intensity_std : 255);
+    // float intensity_avg = Average(intensity_vec) * 5;    // for good rendering
+    // float intensity_std = Deviation(intensity_vec) * 5;  // for good rendering
+    // uint8_t avg_std = static_cast<uint8_t>(
+    //   intensity_avg + intensity_std < 255.0 ? intensity_avg + intensity_std : 255);
 
     for (; iter_in_x != iter_in_x.end();
          ++iter_in_x, ++iter_in_y, ++iter_in_z, ++iter_in_intensity, ++iter_out_x, ++iter_out_y,
@@ -161,7 +159,7 @@ void convertObjectMsg2SensorMsg(
       *iter_out_g = color_data[3 * (i % 6) + 1];
       *iter_out_b = color_data[3 * (i % 6) + 2];
       *iter_out_cluster = i;
-      *iter_out_intensitydistribution = intensity_avg + intensity_std;
+      *iter_out_intensitydistribution = static_cast<uint8_t>(*iter_in_intensity);
     }
   }
 
