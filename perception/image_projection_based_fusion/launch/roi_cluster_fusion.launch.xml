@@ -76,6 +76,7 @@
       <param name="use_iou_x" value="false"/>
       <param name="use_iou_y" value="false"/>
       <param name="iou_threshold" value="0.35"/>
+      <param name="unknown_iou_threshold" value="0.1"/>
       <param name="rois_number" value="$(var input/rois_number)"/>
       <param name="remove_unknown" value="$(var remove_unknown)"/>
       <param name="trust_distance" value="$(var trust_distance)"/>

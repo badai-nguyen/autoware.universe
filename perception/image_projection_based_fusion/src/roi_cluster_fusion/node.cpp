@@ -41,6 +41,7 @@ RoiClusterFusionNode::RoiClusterFusionNode(const rclcpp::NodeOptions & options)
   use_iou_ = declare_parameter("use_iou", false);
   use_cluster_semantic_type_ = declare_parameter("use_cluster_semantic_type", false);
   iou_threshold_ = declare_parameter("iou_threshold", 0.1);
+  unknown_iou_threshold_ = declare_parameter("unknown_iou_threshold", 0.1);
   remove_unknown_ = declare_parameter("remove_unknown", false);
   trust_distance_ = declare_parameter("trust_distance", 100.0);
 }
@@ -67,8 +68,9 @@ void RoiClusterFusionNode::postprocess(DetectedObjectsWithFeature & output_clust
   for (auto & feature_object : output_cluster_msg.feature_objects) {
     if (
       feature_object.object.classification.front().label !=
-      autoware_auto_perception_msgs::msg::ObjectClassification::UNKNOWN ||
-      feature_object.object.existence_probability > 0.0) { // keep unknown object fused with unknow roi
+        autoware_auto_perception_msgs::msg::ObjectClassification::UNKNOWN ||
+      feature_object.object.existence_probability >
+        0.0) {  // keep unknown object fused with unknow roi
       known_objects.feature_objects.push_back(feature_object);
     }
   }
@@ -194,16 +196,19 @@ void RoiClusterFusionNode::fuseOnSingleImage(
     }
 
     // Fusion also unknown_roi without iout_threshold
-    if(max_iou > 0.0 &&
+    if (
+      max_iou > unknown_iou_threshold_ &&
       output_cluster_msg.feature_objects.at(index).object.existence_probability <=
-        feature_obj.object.existence_probability && 
-        output_cluster_msg.feature_objects.at(index).object.classification.front().label == 
-      autoware_auto_perception_msgs::msg::ObjectClassification::UNKNOWN &&
-      output_cluster_msg.feature_objects.at(index).object.existence_probability < 0.1){
-        output_cluster_msg.feature_objects.at(index).object.classification =
+        feature_obj.object.existence_probability &&
+      output_cluster_msg.feature_objects.at(index).object.classification.front().label ==
+        autoware_auto_perception_msgs::msg::ObjectClassification::UNKNOWN) {
+      output_cluster_msg.feature_objects.at(index).object.classification =
         feature_obj.object.classification;
+      // separate unknown object fused with roi by existence_probability
+      if (output_cluster_msg.feature_objects.at(index).object.existence_probability < 0.1) {
         output_cluster_msg.feature_objects.at(index).object.existence_probability = 0.1;
       }
+    }
 
     debug_image_rois.push_back(feature_obj.feature.roi);
   }

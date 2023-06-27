@@ -43,6 +43,7 @@ protected:
   bool use_iou_{false};
   bool use_cluster_semantic_type_{false};
   float iou_threshold_{0.0f};
+  float unknown_iou_threshold_{0.0f};
   bool remove_unknown_;
   float trust_distance_;
 
