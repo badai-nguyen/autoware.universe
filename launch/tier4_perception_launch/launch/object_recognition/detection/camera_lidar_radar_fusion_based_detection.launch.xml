@@ -62,9 +62,24 @@
   <!-- radar detection-->
   <group>
     <push-ros-namespace namespace="radar"/>
-    <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/radar_based_detection.launch.xml">
-      <arg name="output/objects" value="objects"/>
-    </include>
+    <group>
+      <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/radar_based_detection.launch.xml">
+        <arg name="output/objects" value="objects"/>
+      </include>
+    </group>
+
+    <group>
+      <include file="$(find-pkg-share object_velocity_splitter)/launch/object_velocity_splitter.launch.xml">
+        <!-- <arg name="input/objects" value="lanelet_filterred_objects"/> -->
+        <arg name="input/objects" value="objects"/>
+        <!-- Output -->
+        <arg name="output/low_speed_objects" value="low_speed_objects"/>
+        <arg name="output/high_speed_objects" value="high_speed_objects"/>
+        <!-- Parameter -->
+        <arg name="velocity_threshold" value="1.0"/>
+
+      </include>  
+    </group>
   </group>
 
   <!-- camera lidar radar fusion-->
