@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "euclidean_cluster/voxel_grid_based_euclidean_cluster.hpp"
+#include "euclidean_cluster/fast_euclidean_clustering.h"
 
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
@@ -67,17 +68,29 @@ bool VoxelGridBasedEuclideanCluster::cluster(
 
   // create tree
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-  tree->setInputCloud(pointcloud_2d_ptr);
-
-  // clustering
+  // using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
+  // using PointCloudPtr = PointCloud::Ptr;
+  // using KdTree = pcl::search::KdTree<pcl::PointXYZ>;
+  // using KdTreePtr = KdTree::Ptr;
+  FastEuclideanClustering<pcl::PointXYZ> fast_cluster_;
+  fast_cluster_.setClusterTolerance(tolerance_);
+  fast_cluster_.setMaxClusterSize(max_cluster_size_);
   std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<pcl::PointXYZ> pcl_euclidean_cluster;
-  pcl_euclidean_cluster.setClusterTolerance(tolerance_);
-  pcl_euclidean_cluster.setMinClusterSize(1);
-  pcl_euclidean_cluster.setMaxClusterSize(max_cluster_size_);
-  pcl_euclidean_cluster.setSearchMethod(tree);
-  pcl_euclidean_cluster.setInputCloud(pointcloud_2d_ptr);
-  pcl_euclidean_cluster.extract(cluster_indices);
+  fast_cluster_.setInputCloud(pointcloud_2d_ptr);
+  fast_cluster_.setSearchMethod(tree);
+  fast_cluster_.segment(cluster_indices);
+
+  // tree->setInputCloud(pointcloud_2d_ptr);
+
+  // // clustering
+  // std::vector<pcl::PointIndices> cluster_indices;
+  // pcl::EuclideanClusterExtraction<pcl::PointXYZ> pcl_euclidean_cluster;
+  // pcl_euclidean_cluster.setClusterTolerance(tolerance_);
+  // pcl_euclidean_cluster.setMinClusterSize(1);
+  // pcl_euclidean_cluster.setMaxClusterSize(max_cluster_size_);
+  // pcl_euclidean_cluster.setSearchMethod(tree);
+  // pcl_euclidean_cluster.setInputCloud(pointcloud_2d_ptr);
+  // pcl_euclidean_cluster.extract(cluster_indices);
 
   // create map to search cluster index from voxel grid index
   std::unordered_map</* voxel grid index */ int, /* cluster index */ int> map;
