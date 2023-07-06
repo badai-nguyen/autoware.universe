@@ -14,6 +14,8 @@
 
 #include "euclidean_cluster/voxel_grid_based_euclidean_cluster.hpp"
 
+#include "euclidean_cluster/FEC.h"
+
 #include <pcl/kdtree/kdtree.h>
 #include <pcl/segmentation/extract_clusters.h>
 
@@ -54,7 +56,7 @@ bool VoxelGridBasedEuclideanCluster::cluster(
   voxel_grid_.setInputCloud(pointcloud);
   voxel_grid_.setSaveLeafLayout(true);
   voxel_grid_.filter(*voxel_map_ptr);
-
+  
   // voxel is pressed 2d
   pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud_2d_ptr(new pcl::PointCloud<pcl::PointXYZ>);
   for (const auto & point : voxel_map_ptr->points) {
@@ -66,10 +68,16 @@ bool VoxelGridBasedEuclideanCluster::cluster(
   }
 
   // create tree
+  /*
+  stop_watch_.tic("create_tree");
   pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
   tree->setInputCloud(pointcloud_2d_ptr);
+  std::cerr << "    " << stop_watch_.toc("create_tree") << std::endl;
+  */
 
   // clustering
+  // stop_watch_.tic("cluster");
+  /*
   std::vector<pcl::PointIndices> cluster_indices;
   pcl::EuclideanClusterExtraction<pcl::PointXYZ> pcl_euclidean_cluster;
   pcl_euclidean_cluster.setClusterTolerance(tolerance_);
@@ -78,7 +86,9 @@ bool VoxelGridBasedEuclideanCluster::cluster(
   pcl_euclidean_cluster.setSearchMethod(tree);
   pcl_euclidean_cluster.setInputCloud(pointcloud_2d_ptr);
   pcl_euclidean_cluster.extract(cluster_indices);
-
+  */
+  const auto cluster_indices = FEC(pointcloud_2d_ptr, 1, tolerance_, max_cluster_size_);
+  
   // create map to search cluster index from voxel grid index
   std::unordered_map</* voxel grid index */ int, /* cluster index */ int> map;
   for (size_t cluster_idx = 0; cluster_idx < cluster_indices.size(); ++cluster_idx) {
