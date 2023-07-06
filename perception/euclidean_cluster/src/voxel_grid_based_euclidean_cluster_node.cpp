@@ -34,19 +34,12 @@ VoxelGridBasedEuclideanClusterNode::VoxelGridBasedEuclideanClusterNode(
     stop_watch_ptr_->tic("cyclic_time");
     stop_watch_ptr_->tic("processing_time");
   }
-
   const bool use_height = this->declare_parameter("use_height", false);
   const int min_cluster_size = this->declare_parameter("min_cluster_size", 1);
   const int max_cluster_size = this->declare_parameter("max_cluster_size", 500);
   const float tolerance = this->declare_parameter("tolerance", 1.0);
   const float voxel_leaf_size = this->declare_parameter("voxel_leaf_size", 0.5);
   const int min_points_number_per_voxel = this->declare_parameter("min_points_number_per_voxel", 3);
-  {
-    fast_cluster_.setClusterTolerance(tolerance);
-    fast_cluster_.setMaxClusterSize(max_cluster_size);
-    fast_cluster_.setMinClusterSize(min_cluster_size);
-
-  }
   cluster_ = std::make_shared<VoxelGridBasedEuclideanCluster>(
     use_height, min_cluster_size, max_cluster_size, tolerance, voxel_leaf_size,
     min_points_number_per_voxel);
@@ -54,66 +47,11 @@ VoxelGridBasedEuclideanClusterNode::VoxelGridBasedEuclideanClusterNode(
   using std::placeholders::_1;
   pointcloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
     "input", rclcpp::SensorDataQoS().keep_last(1),
-    std::bind(&VoxelGridBasedEuclideanClusterNode::onFastEC, this, _1));
+    std::bind(&VoxelGridBasedEuclideanClusterNode::onPointCloud, this, _1));
 
   cluster_pub_ = this->create_publisher<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
     "output", rclcpp::QoS{1});
   debug_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>("debug/clusters", 1);
-}
-
-void VoxelGridBasedEuclideanClusterNode::onFastEC(
-  const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg)
-{
-  stop_watch_ptr_->toc("processing_time", true);
-  using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
-  using PointCloudPtr = PointCloud::Ptr;
-  using KdTree = pcl::search::KdTree<pcl::PointXYZ>;
-  using KdTreePtr = KdTree::Ptr;
-
-  PointCloudPtr raw_pointcloud_ptr(new PointCloud);
-  pcl::fromROSMsg(*input_msg, *raw_pointcloud_ptr);
-
-  KdTreePtr tree(new KdTree);
-  std::vector<pcl::PointIndices> cluster_indices;
-  fast_cluster_.setInputCloud(raw_pointcloud_ptr);
-  fast_cluster_.setSearchMethod(tree);
-  fast_cluster_.segment(cluster_indices);
-
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> clusters;
-  for (const auto & cluster : cluster_indices)
-  {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
-    for (const auto & point_idx : cluster.indices)
-    {
-      cloud_cluster->points.push_back(raw_pointcloud_ptr->points[point_idx]);
-    }
-    clusters.push_back(*cloud_cluster);
-    clusters.back().width = cloud_cluster->points.size();
-    clusters.back().height = 1;
-    clusters.back().is_dense = false;
-  }
-  tier4_perception_msgs::msg::DetectedObjectsWithFeature output;
-  convertPointCloudClusters2Msg(input_msg->header, clusters,output);
-  cluster_pub_->publish(output);
-
-  if (debug_publisher_ptr_) {
-    const double cyclic_time_ms = stop_watch_ptr_->toc("cyclic_time", true);
-    const double processing_time_ms = stop_watch_ptr_->toc("processing_time", true);
-    debug_publisher_ptr_->publish<tier4_debug_msgs::msg::Float64Stamped>(
-      "debug/cyclic_time_ms", cyclic_time_ms);
-    debug_publisher_ptr_->publish<tier4_debug_msgs::msg::Float64Stamped>(
-      "debug/processing_time_ms", processing_time_ms);
-  }
-
-  if(debug_pub_->get_subscription_count() < 1){
-    return;
-  }
-
-  {
-    sensor_msgs::msg::PointCloud2 debug;
-    convertObjectMsg2SensorMsg(output,debug);
-    debug_pub_->publish(debug);
-  }
 }
 
 void VoxelGridBasedEuclideanClusterNode::onPointCloud(

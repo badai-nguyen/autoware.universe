@@ -15,7 +15,6 @@
 #pragma once
 
 #include "euclidean_cluster/voxel_grid_based_euclidean_cluster.hpp"
-#include "euclidean_cluster/fast_euclidean_clustering.h"
 
 #include <rclcpp/rclcpp.hpp>
 #include <tier4_autoware_utils/ros/debug_publisher.hpp>
@@ -36,14 +35,12 @@ public:
 
 private:
   void onPointCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg);
-  void onFastEC(const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg);
 
   rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr pointcloud_sub_;
   rclcpp::Publisher<tier4_perception_msgs::msg::DetectedObjectsWithFeature>::SharedPtr cluster_pub_;
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr debug_pub_;
 
   std::shared_ptr<VoxelGridBasedEuclideanCluster> cluster_;
-  FastEuclideanClustering<pcl::PointXYZ> fast_cluster_;
   // debugger
   std::unique_ptr<tier4_autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_{
     nullptr};
