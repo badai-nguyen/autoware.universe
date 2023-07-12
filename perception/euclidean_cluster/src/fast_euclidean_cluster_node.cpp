@@ -27,8 +27,7 @@ FastEuclideanClusterNode::FastEuclideanClusterNode(const rclcpp::NodeOptions & o
     using tier4_autoware_utils::DebugPublisher;
     using tier4_autoware_utils::StopWatch;
     stop_watch_ptr_ = std::make_unique<StopWatch<std::chrono::milliseconds>>();
-    debug_publisher_ptr_ =
-      std::make_unique<DebugPublisher>(this, "fast_euclidean_cluster_node");
+    debug_publisher_ptr_ = std::make_unique<DebugPublisher>(this, "fast_euclidean_cluster_node");
     stop_watch_ptr_->tic("cyclic_time");
     stop_watch_ptr_->tic("processing_time");
   }

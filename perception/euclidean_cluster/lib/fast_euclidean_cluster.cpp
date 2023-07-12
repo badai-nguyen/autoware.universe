@@ -14,8 +14,8 @@
 
 #include "euclidean_cluster/fast_euclidean_cluster.hpp"
 
+#include "euclidean_cluster/fast_euclidean_cluster.h"
 #include "pcl/kdtree/kdtree.h"
-
 namespace euclidean_cluster
 {
 FastEuclideanCluster::FastEuclideanCluster()
@@ -36,8 +36,7 @@ bool FastEuclideanCluster::cluster(
   const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
   std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters)
 {
-  // convert 2d pointcloud
-  pcl::PointCloud<pcl::PointXYZ>::ConstPtr pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
   if (!use_height_) {
     pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud_2d_ptr(new pcl::PointCloud<pcl::PointXYZ>);
     for (const auto & point : pointcloud->points) {
@@ -49,24 +48,20 @@ bool FastEuclideanCluster::cluster(
     }
     pointcloud_ptr = pointcloud_2d_ptr;
   } else {
-    pointcloud_ptr = pointcloud;
+    *pointcloud_ptr = *pointcloud;
   }
 
-  // create tree
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
-  tree->setInputCloud(pointcloud_ptr);
+  const auto cluster_indices = fastClusterExtract(pointcloud_ptr, 1, tolerance_, max_cluster_size_);
 
-  // clustering
-  std::vector<pcl::PointIndices> cluster_indices;
-  FastExtractCluster<pcl::PointXYZ> pcl_euclidean_clusters;
-  pcl_euclidean_clusters.setClusterTolerance(tolerance_);
-  pcl_euclidean_clusters.setMinClusterSize(min_cluster_size_);
-  pcl_euclidean_clusters.setMaxClusterSize(max_cluster_size_);
-  pcl_euclidean_clusters.setSearchMethod(tree);
-  pcl_euclidean_clusters.setInputCloud(pointcloud_ptr);
-  pcl_euclidean_clusters.extract(cluster_indices);
+  // create map to search cluster index from voxel grid index
+  std::unordered_map</* voxel grid index */ int, /* cluster index */ int> map;
+  for (size_t cluster_idx = 0; cluster_idx < cluster_indices.size(); ++cluster_idx) {
+    const auto & cluster = cluster_indices.at(cluster_idx);
+    for (const auto & point_idx : cluster.indices) {
+      map[point_idx] = cluster_idx;
+    }
+  }
 
-  // build output
   {
     for (const auto & cluster : cluster_indices) {
       pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
@@ -79,6 +74,7 @@ bool FastEuclideanCluster::cluster(
       clusters.back().is_dense = false;
     }
   }
+
   return true;
 }
 
