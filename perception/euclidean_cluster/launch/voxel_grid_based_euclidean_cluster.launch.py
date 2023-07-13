@@ -171,7 +171,10 @@ def launch_setup(context, *args, **kwargs):
         name="euclidean_cluster",
         remappings=[
             # ("input", "downsampled/concatenated/pointcloud"),
-            ("input", "/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud"),
+            (
+                "input",
+                "/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud",
+            ),
             ("output", LaunchConfiguration("output_clusters")),
         ],
         parameters=[load_composable_node_param("voxel_grid_based_euclidean_param_path")],
