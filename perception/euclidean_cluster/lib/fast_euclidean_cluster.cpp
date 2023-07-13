@@ -36,45 +36,8 @@ bool FastEuclideanCluster::cluster(
   const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
   std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters)
 {
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
-  if (!use_height_) {
-    pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud_2d_ptr(new pcl::PointCloud<pcl::PointXYZ>);
-    for (const auto & point : pointcloud->points) {
-      pcl::PointXYZ point2d;
-      point2d.x = point.x;
-      point2d.y = point.y;
-      point2d.z = 0.0;
-      pointcloud_2d_ptr->push_back(point2d);
-    }
-    pointcloud_ptr = pointcloud_2d_ptr;
-  } else {
-    *pointcloud_ptr = *pointcloud;
-  }
-
-  const auto cluster_indices = fastClusterExtract(pointcloud_ptr, 1, tolerance_, max_cluster_size_);
-
-  // create map to search cluster index from voxel grid index
-  std::unordered_map</* voxel grid index */ int, /* cluster index */ int> map;
-  for (size_t cluster_idx = 0; cluster_idx < cluster_indices.size(); ++cluster_idx) {
-    const auto & cluster = cluster_indices.at(cluster_idx);
-    for (const auto & point_idx : cluster.indices) {
-      map[point_idx] = cluster_idx;
-    }
-  }
-
-  {
-    for (const auto & cluster : cluster_indices) {
-      pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster(new pcl::PointCloud<pcl::PointXYZ>);
-      for (const auto & point_idx : cluster.indices) {
-        cloud_cluster->points.push_back(pointcloud->points[point_idx]);
-      }
-      clusters.push_back(*cloud_cluster);
-      clusters.back().width = cloud_cluster->points.size();
-      clusters.back().height = 1;
-      clusters.back().is_dense = false;
-    }
-  }
-
+  // TODO(badai): add 2d point option
+  fastClusterExtract(pointcloud, min_cluster_size_, tolerance_, max_cluster_size_, clusters);
   return true;
 }
 

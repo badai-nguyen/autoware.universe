@@ -27,7 +27,6 @@
 #include <ctime>
 #include <iostream>
 #include <vector>
-
 struct ClassifedPoint
 {
   size_t point_indice;
@@ -39,24 +38,21 @@ bool getClass(const ClassifedPoint & p0, const ClassifedPoint & p1)
   return p0.class_index < p1.class_index;
 }
 
-std::vector<pcl::PointIndices> fastClusterExtract(
-  const pcl::PointCloud<pcl::PointXYZ>::Ptr & cloud, const size_t min_component_size,
-  const double tolerance, const int max_n)
+void fastClusterExtract(
+  const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & cloud, const int min_cluster_size,
+  const double tolerance, const int max_cluster_size, std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters)
 {
   std::vector<pcl::PointIndices> cluster_indices;
-  if (cloud->points.size() < min_component_size) {
+  if (cloud->points.size() < static_cast<size_t>(min_cluster_size)) {
     cluster_indices.clear();
-    return cluster_indices;
+    clusters.clear();
+    return;
   }
 
   cluster_indices.resize(cloud->points.size());
 
   pcl::KdTreeFLANN<pcl::PointXYZ> cloud_kdtreeflann;
   cloud_kdtreeflann.setInputCloud(cloud);
-  size_t cloud_size = cloud->points.size();
-  std::vector<int> marked_indices;
-  marked_indices.resize(cloud_size);
-  memset(marked_indices.data(), 0, sizeof(int) * cloud_size);
 
   std::vector<ClassifedPoint> classified_points;
   for (size_t i = 0; i < cloud->points.size(); ++i) {
@@ -73,7 +69,7 @@ std::vector<pcl::PointIndices> fastClusterExtract(
     if (point->class_index == 0) {
       nn_distances.clear();
       nn_indices.clear();
-      cloud_kdtreeflann.radiusSearch(cloud->points[i], tolerance, nn_indices, nn_distances, max_n);
+      cloud_kdtreeflann.radiusSearch(cloud->points[i], tolerance, nn_indices, nn_distances, max_cluster_size);
 
       int min_class_idx = class_idx;
       for (size_t j = 0; j < nn_indices.size(); ++j) {
@@ -102,11 +98,14 @@ std::vector<pcl::PointIndices> fastClusterExtract(
   int new_class_idx = 0;
   int prev_class_idx = 0;
   pcl::PointIndices::Ptr object_indices(new pcl::PointIndices);
-  object_indices->indices.resize(classified_points.size());
+  pcl::PointCloud<pcl::PointXYZ>::Ptr object_points(new pcl::PointCloud<pcl::PointXYZ>);
+  clusters.clear();
+  std::vector<pcl::PointCloud<pcl::PointXYZ>> temp_clusters;
   for (auto point = classified_points.begin(); point < classified_points.end(); point++) {
     if (point->class_index == prev_class_idx) {
       point->class_index = new_class_idx;
       object_indices->indices.push_back(point->point_indice);
+      object_points->points.push_back(cloud->points[point->point_indice]);
       continue;
     }
 
@@ -116,9 +115,12 @@ std::vector<pcl::PointIndices> fastClusterExtract(
       //
       if (object_indices->indices.size() > 0) {
         cluster_indices.push_back(*object_indices);
+        temp_clusters.push_back(*object_points);
         object_indices->indices.clear();
+        object_points->points.clear();
       }
       object_indices->indices.push_back(point->point_indice);
+      object_points->points.push_back(cloud->points[point->point_indice]);
       continue;
     }
 
@@ -129,11 +131,23 @@ std::vector<pcl::PointIndices> fastClusterExtract(
 
       if (object_indices->indices.size() > 0) {
         cluster_indices.push_back(*object_indices);
+        temp_clusters.push_back(*object_points);
+        object_points->points.clear();
         object_indices->indices.clear();
       }
       object_indices->indices.push_back(point->point_indice);
+      object_points->points.push_back(cloud->points[point->point_indice]);
       continue;
     }
   }
-  return cluster_indices;
+  for (const auto & cluster : temp_clusters) {
+    if (
+      static_cast<size_t>(min_cluster_size) < cluster.size() &&
+      cluster.size() < static_cast<size_t>(max_cluster_size)) {
+      clusters.push_back(cluster);
+      clusters.back().width = cluster.points.size();
+      clusters.back().height = 1;
+      clusters.back().is_dense = false;
+    }
+  }
 }
