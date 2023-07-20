@@ -44,46 +44,11 @@ def launch_setup(context, *args, **kwargs):
         remappings=[
             ("input", LaunchConfiguration("input_pointcloud")),
             ("map", LaunchConfiguration("input_map")),
-            ("output", "map_filter/pointcloud"),
+            ("output", "downsampled/concatenated/pointcloud"),
             ("map_loader_service", "/map/get_differential_pointcloud_map"),
             ("pose_with_covariance", "/localization/pose_estimator/pose_with_covariance"),
         ],
         parameters=[load_composable_node_param("compare_map_param_path")],
-    )
-
-    # separate range of pointcloud when map_filter used
-    use_map_short_range_crop_box_filter_component = ComposableNode(
-        package="pointcloud_preprocessor",
-        namespace=ns,
-        plugin="pointcloud_preprocessor::CropBoxFilterComponent",
-        name="short_distance_crop_box_range",
-        remappings=[
-            ("input", "map_filter/pointcloud"),
-            ("output", "short_range/pointcloud"),
-        ],
-        parameters=[
-            load_composable_node_param("voxel_grid_based_euclidean_param_path"),
-            {
-                "negative": False,
-            },
-        ],
-    )
-
-    use_map_long_range_crop_box_filter_component = ComposableNode(
-        package="pointcloud_preprocessor",
-        namespace=ns,
-        plugin="pointcloud_preprocessor::CropBoxFilterComponent",
-        name="long_distance_crop_box_range",
-        remappings=[
-            ("input", LaunchConfiguration("input_pointcloud")),
-            ("output", "long_range/pointcloud"),
-        ],
-        parameters=[
-            load_composable_node_param("voxel_grid_based_euclidean_param_path"),
-            {
-                "negative": True,
-            },
-        ],
     )
 
     # disuse_map_voxel_grid_filter
