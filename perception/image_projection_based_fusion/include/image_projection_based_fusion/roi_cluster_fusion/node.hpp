@@ -43,6 +43,9 @@ protected:
   bool use_iou_{false};
   bool use_cluster_semantic_type_{false};
   float iou_threshold_{0.0f};
+  float unknown_iou_threshold_{0.0f};
+  const float min_roi_existence_prob_ =
+    0.1;  // keep small value to lessen affect on merger object stage
   bool remove_unknown_;
   float trust_distance_;
 
