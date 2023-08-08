@@ -13,7 +13,7 @@ def launch_setup(context, *args, **kwargs):
         with open(LaunchConfiguration(param_path).perform(context), "r") as f:
             return yaml.safe_load(f)["/**"]["ros__parameters"]
 
-    ns = "small_object"
+    ns = ""
     pkg = "euclidean_cluster"
 
     # set lanelet pointcloud filter

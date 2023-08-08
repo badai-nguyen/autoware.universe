@@ -1,22 +1,52 @@
 <?xml version="1.0"?>
 <launch>
-  <arg name="input_pointcloud" default="/perception/obstacle_segmentation/pointcloud"/>
-  <arg name="small_object_output_clusters" default="small_objects_clusters"/>
-  <arg name="input/vector_map" default="/map/vector_map"/>
-  <arg name="image_raw0" default="/image_raw" description="image raw topic name"/>
-  <arg name="camera_info0" default="/camera_info" description="camera info topic name"/>
-  <arg name="detection_rois0" default="/perception/object_recognition/detection/rois0" description="detection rois output topic name"/>
-  <arg name="image_number" default="1" description="default 1 for front camera fusion only"/>
-  <arg name="score_threshold" default="0.35"/>
-  <arg name="remove_unknown" default="false"/>
-  <arg name="trust_distance" default="60.0"/>
+  <push-ros-namespace namespace="small_object"/>
   <group>
-    <include file="$(find-pkg-share euclidean_cluster)/launch/small_object_voxel_grid_based_euclidean_cluster.launch.py">
-      <arg name="input_pointcloud" value="$(var input_pointcloud)"/>
-      <arg name="small_object_output_clusters" value="$(var small_object_output_clusters)"/>
-      <arg name="input/vector_map" value="$(var input/vector_map)"/>
-    </include>
+    <arg name="input_pointcloud" default="/perception/obstacle_segmentation/pointcloud"/>
+    <arg name="small_object_output_clusters" default="small_objects_clusters"/>
+    <arg name="output_small_objects" default="small_objects"/>
+    <arg name="input/vector_map" default="/map/vector_map"/>
+    <arg name="image_raw0" default="/image_raw" description="image raw topic name"/>
+    <arg name="camera_info0" default="/camera_info" description="camera info topic name"/>
+    <arg name="detection_rois0" default="/perception/object_recognition/detection/rois0" description="detection rois output topic name"/>
+    <arg name="rois_number" default="1" description="default 1 for front camera fusion only"/>
+    <arg name="score_threshold" default="0.35"/>
+    <arg name="remove_unknown" default="false"/>
+    <arg name="trust_distance" default="60.0"/>
+    <group>
+      <include file="$(find-pkg-share euclidean_cluster)/launch/small_object_voxel_grid_based_euclidean_cluster.launch.py">
+        <arg name="input_pointcloud" value="$(var input_pointcloud)"/>
+        <arg name="small_object_output_clusters" value="$(var small_object_output_clusters)"/>
+        <arg name="input/vector_map" value="$(var input/vector_map)"/>
+      </include>
+    </group>
+
+    <group>
+      <include file="$(find-pkg-share image_projection_based_fusion)/launch/roi_cluster_fusion.launch.xml">
+        <arg name="input/camera_info0" value="$(var camera_info0)"/>
+        <arg name="input/rois0" value="$(var detection_rois0)"/>
+        <arg name="input/clusters" value="$(var small_object_output_clusters)"/>
+        <arg name="output/clusters" value="clusters"/>
+        <arg name="remove_unknown" value="$(var remove_unknown)"/>
+        <arg name="trust_distance" value="$(var trust_distance)"/>
+        <arg name="input/rois_number" value="$(var rois_number)"/>
+        <arg name="remove_unknown" value="$(var remove_unknown)"/>
+        <arg name="trust_distance" value="$(var trust_distance)"/>
+      </include>
+    </group>
+
+    <group>
+      <include file="$(find-pkg-share shape_estimation)/launch/shape_estimation.launch.xml">
+        <arg name="input/objects" value="clusters"/>
+        <arg name="output/objects" value="objects_with_feature"/>
+      </include>
+    </group>
+
+    <group>
+      <include file="$(find-pkg-share detected_object_feature_remover)/launch/detected_object_feature_remover.launch.xml">
+        <arg name="input" value="objects_with_feature"/>
+        <arg name="output" value="$(var output_small_objects)"/>
+      </include>
+    </group>
   </group>
-
-
 </launch>

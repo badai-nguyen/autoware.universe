@@ -81,7 +81,7 @@ FusionNode<Msg, ObjType>::FusionNode(
   }
 
   input_offset_ms_ = declare_parameter("input_offset_ms", std::vector<double>{});
-  if (!input_offset_ms_.empty() && rois_number_ != input_offset_ms_.size()) {
+  if (!input_offset_ms_.empty() && rois_number_ > input_offset_ms_.size()) {
     throw std::runtime_error("The number of offsets does not match the number of topics.");
   }
 
