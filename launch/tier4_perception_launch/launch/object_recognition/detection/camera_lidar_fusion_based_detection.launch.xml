@@ -64,6 +64,19 @@
     </include>
   </group>
 
+  <!--clustering small object-->
+  <group>
+    <push-ros-namespace namespace="small_object_clustering"/>
+    <group>
+      <let name="small_object/input/pointcloud" value="/perception/obstacle_segmentation/pointcloud"/>
+      <let name="small_object_output_clusters" value="small_object/clusters"/>
+      <include file="$(find-pkg-share euclidean_cluster)/launch/small_object_voxel_grid_based_euclidean_cluster.launch.xml">
+        <arg name="input_pointcloud" value="$(var small_object/input/pointcloud)"/>
+        <arg name="small_object_output_clusters" value="$(var small_object_output_clusters)"/>
+      </include>
+    </group>
+  </group>
+
   <!-- Clustering -->
   <group>
     <push-ros-namespace namespace="clustering"/>

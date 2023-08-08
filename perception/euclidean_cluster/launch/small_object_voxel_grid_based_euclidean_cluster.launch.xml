@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+  <arg name="input_pointcloud" default="/perception/obstacle_segmentation/pointcloud"/>
+  <arg name="small_object_output_clusters" default="small_objects_clusters"/>
+  <arg name="input/vector_map" default="/map/vector_map"/>
+  <arg name="image_raw0" default="/image_raw" description="image raw topic name"/>
+  <arg name="camera_info0" default="/camera_info" description="camera info topic name"/>
+  <arg name="detection_rois0" default="/perception/object_recognition/detection/rois0" description="detection rois output topic name"/>
+  <arg name="image_number" default="1" description="default 1 for front camera fusion only"/>
+  <arg name="score_threshold" default="0.35"/>
+  <arg name="remove_unknown" default="false"/>
+  <arg name="trust_distance" default="60.0"/>
+  <group>
+    <include file="$(find-pkg-share euclidean_cluster)/launch/small_object_voxel_grid_based_euclidean_cluster.launch.py">
+      <arg name="input_pointcloud" value="$(var input_pointcloud)"/>
+      <arg name="small_object_output_clusters" value="$(var small_object_output_clusters)"/>
+      <arg name="input/vector_map" value="$(var input/vector_map)"/>
+    </include>
+  </group>
+
+
+</launch>
