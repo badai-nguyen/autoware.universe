@@ -29,8 +29,8 @@ def launch_setup(context, *args, **kwargs):
         ],
         parameters=[
             {
-                "voxel_size_x": 0.4,
-                "voxel_size_y": 0.4,
+                "voxel_size_x": 0.5,
+                "voxel_size_y": 0.5,
             }
         ],
         # cannot use intra process because vector map filter uses transient local.

@@ -141,7 +141,7 @@
       <!--clustering small object-->
       <group>
         <group>
-          <let name="small_object/input/pointcloud" value="/perception/obstacle_segmentation/pointcloud"/>
+          <let name="small_object/input/pointcloud" value="/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud"/>
           <let name="output_small_objects" value="small_objects"/>
           <include file="$(find-pkg-share euclidean_cluster)/launch/small_object_voxel_grid_based_euclidean_cluster.launch.xml">
             <arg name="input_pointcloud" value="$(var small_object/input/pointcloud)"/>
