@@ -50,7 +50,7 @@ using sensor_msgs::msg::PointCloud2;
 using tier4_perception_msgs::msg::DetectedObjectsWithFeature;
 using tier4_perception_msgs::msg::DetectedObjectWithFeature;
 
-template <class Msg, class ObjType>
+template <class Msg, class ObjType,  class Msg2>
 class FusionNode : public rclcpp::Node
 {
 public:

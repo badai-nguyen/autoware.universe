@@ -40,8 +40,8 @@ static double processing_time_ms = 0;
 namespace image_projection_based_fusion
 {
 
-template <class Msg, class ObjType>
-FusionNode<Msg, ObjType>::FusionNode(
+template <class Msg, class ObjType, class Msg2>
+FusionNode<Msg, ObjType,  Msg2>::FusionNode(
   const std::string & node_name, const rclcpp::NodeOptions & options)
 : Node(node_name, options), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_)
 {
@@ -146,22 +146,22 @@ FusionNode<Msg, ObjType>::FusionNode(
   filter_scope_maxz_ = declare_parameter("filter_scope_maxz", 100);
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::cameraInfoCallback(
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::cameraInfoCallback(
   const sensor_msgs::msg::CameraInfo::ConstSharedPtr input_camera_info_msg,
   const std::size_t camera_id)
 {
   camera_info_map_[camera_id] = *input_camera_info_msg;
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::preprocess(Msg & ouput_msg __attribute__((unused)))
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::preprocess(Msg & ouput_msg __attribute__((unused)))
 {
   // do nothing by default
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::subCallback(const typename Msg::ConstSharedPtr input_msg)
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::subCallback(const typename Msg::ConstSharedPtr input_msg)
 {
   if (sub_std_pair_.second != nullptr) {
     stop_watch_ptr_->toc("processing_time", true);
@@ -282,8 +282,8 @@ void FusionNode<Msg, Obj>::subCallback(const typename Msg::ConstSharedPtr input_
   }
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::roiCallback(
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::roiCallback(
   const DetectedObjectsWithFeature::ConstSharedPtr input_roi_msg, const std::size_t roi_i)
 {
   stop_watch_ptr_->toc("processing_time", true);
@@ -346,14 +346,14 @@ void FusionNode<Msg, Obj>::roiCallback(
   (roi_stdmap_.at(roi_i))[timestamp_nsec] = input_roi_msg;
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::postprocess(Msg & output_msg __attribute__((unused)))
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::postprocess(Msg & output_msg __attribute__((unused)))
 {
   // do nothing by default
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::timer_callback()
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::timer_callback()
 {
   using std::chrono_literals::operator""ms;
   timer_->cancel();
@@ -391,8 +391,8 @@ void FusionNode<Msg, Obj>::timer_callback()
   }
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::setPeriod(const int64_t new_period)
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::setPeriod(const int64_t new_period)
 {
   if (!timer_) {
     return;
@@ -408,8 +408,8 @@ void FusionNode<Msg, Obj>::setPeriod(const int64_t new_period)
   }
 }
 
-template <class Msg, class Obj>
-void FusionNode<Msg, Obj>::publish(const Msg & output_msg)
+template <class Msg, class Obj, class Msg2>
+void FusionNode<Msg, Obj, Msg2>::publish(const Msg & output_msg)
 {
   if (pub_ptr_->get_subscription_count() < 1) {
     return;
@@ -417,7 +417,7 @@ void FusionNode<Msg, Obj>::publish(const Msg & output_msg)
   pub_ptr_->publish(output_msg);
 }
 
-template class FusionNode<DetectedObjects, DetectedObject>;
-template class FusionNode<DetectedObjectsWithFeature, DetectedObjectWithFeature>;
-template class FusionNode<sensor_msgs::msg::PointCloud2, DetectedObjects>;
+template class FusionNode<DetectedObjects, DetectedObject, DetectedObjects>;
+template class FusionNode<DetectedObjectsWithFeature, DetectedObjectWithFeature, DetectedObjects>;
+template class FusionNode<sensor_msgs::msg::PointCloud2, DetectedObjects, DetectedObjects>;
 }  // namespace image_projection_based_fusion
