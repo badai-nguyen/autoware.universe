@@ -41,7 +41,7 @@ namespace image_projection_based_fusion
 {
 
 template <class Msg, class ObjType, class Msg2>
-FusionNode<Msg, ObjType,  Msg2>::FusionNode(
+FusionNode<Msg, ObjType, Msg2>::FusionNode(
   const std::string & node_name, const rclcpp::NodeOptions & options)
 : Node(node_name, options), tf_buffer_(this->get_clock()), tf_listener_(tf_buffer_)
 {
@@ -65,7 +65,6 @@ FusionNode<Msg, ObjType,  Msg2>::FusionNode(
   input_rois_topics_.resize(rois_number_);
   input_camera_topics_.resize(rois_number_);
   input_camera_info_topics_.resize(rois_number_);
-
   for (std::size_t roi_i = 0; roi_i < rois_number_; ++roi_i) {
     input_rois_topics_.at(roi_i) = declare_parameter<std::string>(
       "input/rois" + std::to_string(roi_i),
@@ -287,7 +286,6 @@ void FusionNode<Msg, Obj, Msg2>::roiCallback(
   const DetectedObjectsWithFeature::ConstSharedPtr input_roi_msg, const std::size_t roi_i)
 {
   stop_watch_ptr_->toc("processing_time", true);
-
   int64_t timestamp_nsec =
     (*input_roi_msg).header.stamp.sec * (int64_t)1e9 + (*input_roi_msg).header.stamp.nanosec;
 

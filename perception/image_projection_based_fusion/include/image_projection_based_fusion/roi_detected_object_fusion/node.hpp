@@ -29,7 +29,8 @@ namespace image_projection_based_fusion
 
 using sensor_msgs::msg::RegionOfInterest;
 
-class RoiDetectedObjectFusionNode : public FusionNode<DetectedObjects, DetectedObject, DetectedObjects>
+class RoiDetectedObjectFusionNode
+: public FusionNode<DetectedObjects, DetectedObject, DetectedObjects>
 {
 public:
   explicit RoiDetectedObjectFusionNode(const rclcpp::NodeOptions & options);

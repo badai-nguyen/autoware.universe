@@ -33,7 +33,8 @@ namespace image_projection_based_fusion
 {
 using Label = autoware_auto_perception_msgs::msg::ObjectClassification;
 
-class PointPaintingFusionNode : public FusionNode<sensor_msgs::msg::PointCloud2, DetectedObjects, DetectedObjects>
+class PointPaintingFusionNode
+: public FusionNode<sensor_msgs::msg::PointCloud2, DetectedObjects, DetectedObjects>
 {
 public:
   explicit PointPaintingFusionNode(const rclcpp::NodeOptions & options);
