@@ -38,6 +38,7 @@ private:
   std::map<std::size_t, sensor_msgs::msg::CameraInfo> camera_info_map_;
   std::pair<int64_t, PointCloud2::SharedPtr> sub_std_pair_;
   std::pair<int64_t, DetectedObjectsWithFeature::SharedPtr> fused_std_pair_;
+  DetectedObjectsWithFeature fused_objects_;
   double timeout_ms_{};
   double match_threshold_ms_{};
   std::vector<std::string> input_rois_topics_;
