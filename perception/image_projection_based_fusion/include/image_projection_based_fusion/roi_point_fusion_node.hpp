@@ -40,11 +40,19 @@ private:
   std::pair<int64_t, DetectedObjectsWithFeature::SharedPtr> fused_std_pair_;
   double timeout_ms_{};
   double match_threshold_ms_{};
+  std::vector<std::string> input_rois_topics_;
+  std::vector<std::string> input_camera_info_topics_;
+  std::vector<std::string> input_camera_topics_;
   bool fuse_unknown_only_{true};
   std::size_t rois_number_{1};
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
   rclcpp::TimerBase::SharedPtr timer_;
+
+  std::vector<rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr> camera_info_subs_;
+  std::vector<rclcpp::Subscription<DetectedObjectsWithFeature>::SharedPtr> rois_subs_;
+  rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr cloud_sub_;
+  rclcpp::Publisher<DetectedObjectsWithFeature>::SharedPtr pub_ptr_;
 
   // offsets between cameras and lidars
   std::vector<double> input_offset_ms_;
@@ -52,10 +60,15 @@ private:
   std::vector<bool> is_fused_{1};
   std::vector<std::map<int64_t, DetectedObjectsWithFeature::ConstSharedPtr>> roi_stdmap_;
 
+  std::mutex mutex_;
+
 public:
   explicit RoiPointCloudFusionNode(const rclcpp::NodeOptions & options);
 
 protected:
+  void timer_callback();
+  void publish(const DetectedObjectsWithFeature & output_msg);
+  void setPeriod(const int64_t new_period);
   void cameraInfoCallback(
     const sensor_msgs::msg::CameraInfo::ConstSharedPtr input_camera_info_msg,
     const std::size_t camera_id);
@@ -63,6 +76,7 @@ protected:
   void roiCallback(
     const DetectedObjectsWithFeature::ConstSharedPtr input_roi_msg, const std::size_t roi_i);
 
+  void subCallback(const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg);
   void fuseOnSingleImage(
     const PointCloud2 & input_cloud_msg, const std::size_t image_id,
     const DetectedObjectsWithFeature & input_roi_msg,

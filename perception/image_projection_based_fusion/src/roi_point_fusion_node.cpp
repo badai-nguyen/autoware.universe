@@ -25,6 +25,67 @@ RoiPointCloudFusionNode::RoiPointCloudFusionNode(const rclcpp::NodeOptions & opt
   tf_buffer_(this->get_clock()),
   tf_listener_(tf_buffer_)
 {
+  rois_number_ = static_cast<std::size_t>(declare_parameter("rois_number", 1));
+  match_threshold_ms_ = declare_parameter<double>("match_threshold_ms");
+  timeout_ms_ = declare_parameter<double>("timeout_ms");
+  fuse_unknown_only_ = declare_parameter<bool>("fuse_unknown_only", false);
+
+  input_rois_topics_.resize(rois_number_);
+  input_camera_topics_.resize(rois_number_);
+  input_camera_info_topics_.resize(rois_number_);
+  for (std::size_t roi_i = 0; roi_i < rois_number_; ++roi_i) {
+    input_rois_topics_.at(roi_i) = declare_parameter<std::string>(
+      "input/rois" + std::to_string(roi_i),
+      "/perception/object_recognition/detection/rois" + std::to_string(roi_i));
+    input_camera_info_topics_.at(roi_i) = declare_parameter<std::string>(
+      "input/camera_info" + std::to_string(roi_i),
+      "/sensing/camera/camera" + std::to_string(roi_i) + "/camera_info");
+
+    input_camera_topics_.at(roi_i) = declare_parameter<std::string>(
+      "input/image" + std::to_string(roi_i),
+      "/sensing/camera/camera" + std::to_string(roi_i) + "/image_rect_color");
+  }
+
+  input_offset_ms_ = declare_parameter("input_offset_ms", std::vector<double>{});
+  if (!input_offset_ms_.empty() && rois_number_ > input_offset_ms_.size()) {
+    throw std::runtime_error("The number of offsets does not match the number of topics.");
+  }
+
+  // sub camera info
+  camera_info_subs_.resize(rois_number_);
+  for (std::size_t roi_i = 0; roi_i < rois_number_; ++roi_i) {
+    std::function<void(const sensor_msgs::msg::CameraInfo::ConstSharedPtr msg)> fnc =
+      std::bind(&RoiPointCloudFusionNode::cameraInfoCallback, this, std::placeholders::_1, roi_i);
+    camera_info_subs_.at(roi_i) = this->create_subscription<sensor_msgs::msg::CameraInfo>(
+      input_camera_info_topics_.at(roi_i), rclcpp::QoS{1}.best_effort(), fnc);
+  }
+
+  // sub rois
+
+  rois_subs_.resize(rois_number_);
+  roi_stdmap_.resize(rois_number_);
+  is_fused_.resize(rois_number_, false);
+  for (std::size_t roi_i = 0; roi_i < rois_number_; ++roi_i) {
+    std::function<void(DetectedObjectsWithFeature::ConstSharedPtr msg)> roi_callback =
+      std::bind(&RoiPointCloudFusionNode::roiCallback, this, std::placeholders::_1, roi_i);
+    rois_subs_.at(roi_i) = this->create_subscription<DetectedObjectsWithFeature>(
+      input_rois_topics_.at(roi_i), rclcpp::QoS{1}.best_effort(), roi_callback);
+  }
+
+  // subscribers pointcloud
+  std::function<void(sensor_msgs::msg::PointCloud2::ConstSharedPtr mgs)> sub_callback =
+    std::bind(&RoiPointCloudFusionNode::subCallback, this, std::placeholders::_1);
+  cloud_sub_ = this->create_subscription<sensor_msgs::msg::PointCloud2>(
+    "input", rclcpp::QoS(1).best_effort(), sub_callback);
+
+  // publisher
+  pub_ptr_ = this->create_publisher<DetectedObjectsWithFeature>("output", rclcpp::QoS(1));
+
+  // set timer
+  const auto period_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    std::chrono::duration<double, std::milli>(timeout_ms_));
+  timer_ = rclcpp::create_timer(
+    this, get_clock(), period_ns, std::bind(&RoiPointCloudFusionNode::timer_callback, this));
 }
 
 geometry_msgs::msg::Point RoiPointCloudFusionNode::getCentroid(
@@ -46,6 +107,44 @@ geometry_msgs::msg::Point RoiPointCloudFusionNode::getCentroid(
   centroid.y = centroid.y / static_cast<float>(size);
   centroid.z = centroid.z / static_cast<float>(size);
   return centroid;
+}
+
+void RoiPointCloudFusionNode::timer_callback()
+{
+  using std::chrono_literals::operator""ms;
+  timer_->cancel();
+  if (mutex_.try_lock()) {
+    if (fused_std_pair_.second != nullptr) {
+      publish(*(fused_std_pair_.second));
+    }
+    std::fill(is_fused_.begin(), is_fused_.end(), false);
+    fused_std_pair_.second = nullptr;
+    mutex_.unlock();
+  } else {
+    try {
+      std::chrono::nanoseconds period = 10ms;
+      setPeriod(period.count());
+    } catch (rclcpp::exceptions::RCLError & e) {
+      RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "%s", e.what());
+    }
+    timer_->reset();
+  }
+}
+
+void RoiPointCloudFusionNode::setPeriod(const int64_t new_period)
+{
+  if (!timer_) {
+    return;
+  }
+  int64_t old_period = 0;
+  rcl_ret_t ret = rcl_timer_get_period(timer_->get_timer_handle().get(), &old_period);
+  if (ret != RCL_RET_OK) {
+    rclcpp::exceptions::throw_from_rcl_error(ret, "Couldn't get old period");
+  }
+  ret = rcl_timer_exchange_period(timer_->get_timer_handle().get(), new_period, &old_period);
+  if (ret != RCL_RET_OK) {
+    rclcpp::exceptions::throw_from_rcl_error(ret, "couldn't exchange period");
+  }
 }
 
 void RoiPointCloudFusionNode::cameraInfoCallback(
@@ -81,6 +180,67 @@ void RoiPointCloudFusionNode::roiCallback(
     }
   }
   (roi_stdmap_.at(roi_i))[timestamp_nsec] = input_roi_msg;
+}
+
+void RoiPointCloudFusionNode::subCallback(
+  const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg)
+{
+  if (fused_std_pair_.second != nullptr) {
+    timer_->cancel();
+    publish(*(fused_std_pair_.second));
+    fused_std_pair_.second = nullptr;
+    std::fill(is_fused_.begin(), is_fused_.end(), false);
+  }
+  std::lock_guard<std::mutex> lock(mutex_);
+  auto period = std::chrono::duration_cast<std::chrono::nanoseconds>(
+    std::chrono::duration<double, std::milli>(timeout_ms_));
+  try {
+    setPeriod(period.count());
+  } catch (rclcpp::exceptions::RCLError & ex) {
+    RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "%s", ex.what());
+  }
+  timer_->reset();
+  DetectedObjectsWithFeature::SharedPtr output_msg;
+  output_msg->header = input_msg->header;
+  int64_t timestamp_nsec =
+    output_msg->header.stamp.sec * (int64_t)1e9 + output_msg->header.stamp.nanosec;
+
+  for (std::size_t roi_i = 0; roi_i < rois_number_; ++roi_i) {
+    if (camera_info_map_.find(roi_i) == camera_info_map_.end()) {
+      continue;
+    }
+
+    if ((roi_stdmap_.at(roi_i)).size() > 0) {
+      int64_t min_interval = 1e9;
+      int64_t matched_stamp = -1;
+      std::list<int64_t> outdate_stamps;
+      for (const auto & [k, v] : roi_stdmap_.at(roi_i)) {
+        int64_t new_stamp = timestamp_nsec + input_offset_ms_.at(roi_i) * (int64_t)1e6;
+        int64_t interval = abs(int64_t(k) - new_stamp);
+        if (interval <= min_interval && interval <= match_threshold_ms_ * (int64_t)1e6) {
+          min_interval = interval;
+          matched_stamp = k;
+        } else if (int64_t(k) < new_stamp && interval > match_threshold_ms_ * (int64_t)1e6) {
+          outdate_stamps.push_back(int64_t(k));
+        }
+      }
+
+      // remove outdated stamps
+      for (auto stamp : outdate_stamps) {
+        (roi_stdmap_.at(roi_i)).erase(stamp);
+      }
+
+      // fuseOnSingle
+
+      if (matched_stamp != -1) {
+        fuseOnSingleImage(
+          *input_msg, roi_i, *((roi_stdmap_.at(roi_i))[matched_stamp]), camera_info_map_.at(roi_i),
+          *output_msg);
+        (roi_stdmap_.at(roi_i)).erase(matched_stamp);
+        is_fused_.at(roi_i) = true;
+      }
+    }
+  }
 }
 
 void RoiPointCloudFusionNode::fuseOnSingleImage(
@@ -178,5 +338,12 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
 
     output_msg.feature_objects.push_back(feature_obj);
   }
+}
+void RoiPointCloudFusionNode::publish(const DetectedObjectsWithFeature & output_msg)
+{
+  if (pub_ptr_->get_subscription_count() < 1) {
+    return;
+  }
+  pub_ptr_->publish(output_msg);
 }
 }  // namespace image_projection_based_fusion
