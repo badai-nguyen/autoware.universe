@@ -27,6 +27,27 @@ RoiPointCloudFusionNode::RoiPointCloudFusionNode(const rclcpp::NodeOptions & opt
 {
 }
 
+geometry_msgs::msg::Point RoiPointCloudFusionNode::getCentroid(
+  const sensor_msgs::msg::PointCloud2 & pointcloud)
+{
+  geometry_msgs::msg::Point centroid;
+  centroid.x = 0.0f;
+  centroid.y = 0.0f;
+  centroid.z = 0.0f;
+  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(pointcloud, "x"),
+       iter_y(pointcloud, "y"), iter_z(pointcloud, "z");
+       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+    centroid.x += *iter_x;
+    centroid.y += *iter_y;
+    centroid.z += *iter_z;
+  }
+  const size_t size = pointcloud.width * pointcloud.height;
+  centroid.x = centroid.x / static_cast<float>(size);
+  centroid.y = centroid.y / static_cast<float>(size);
+  centroid.z = centroid.z / static_cast<float>(size);
+  return centroid;
+}
+
 void RoiPointCloudFusionNode::cameraInfoCallback(
   const sensor_msgs::msg::CameraInfo::ConstSharedPtr input_camera_info_msg,
   const std::size_t camera_id)
@@ -87,6 +108,9 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
     return;
   }
 
+  std::vector<PointCloud> clusters;
+  clusters.reserve(output_objects.size());
+
   Eigen::Matrix4d projection;
   projection << camera_info.p.at(0), camera_info.p.at(1), camera_info.p.at(2), camera_info.p.at(3),
     camera_info.p.at(4), camera_info.p.at(5), camera_info.p.at(6), camera_info.p.at(7),
@@ -108,8 +132,11 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
   std::vector<Eigen::Vector2d> projected_points;
   projected_points.reserve(transformed_cloud.data.size());
   for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(transformed_cloud, "x"),
-       iter_y(transformed_cloud, "y"), iter_z(transformed_cloud, "z");
-       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+       iter_y(transformed_cloud, "y"), iter_z(transformed_cloud, "z"),
+       iter_orig_x(input_cloud_msg, "x"), iter_orig_y(input_cloud_msg, "y"),
+       iter_orig_z(input_cloud_msg, "z");
+       iter_x != iter_x.end();
+       ++iter_x, ++iter_y, ++iter_z, ++iter_orig_x, ++iter_orig_y, ++iter_orig_z) {
     if (*iter_z <= 0.0) {
       continue;
     }
@@ -123,13 +150,32 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
       static_cast<int>(normalized_projected_point.y()) < static_cast<int>(camera_info.height) - 1) {
       projected_points.push_back(normalized_projected_point);
     }
-  }
 
-  if (projected_points.empty()) {
-    return;
-  }
+    for (std::size_t i = 0; i < output_objects.size(); ++i) {
+      auto & feature_obj = output_objects.at(i);
+      const auto & check_roi = feature_obj.feature.roi;
+      auto & cluster = clusters.at(i);
 
-  for (const auto & feature_obj : output_objects) {
+      if (
+        check_roi.x_offset <= normalized_projected_point.x() &&
+        check_roi.y_offset <= normalized_projected_point.y() &&
+        check_roi.x_offset + check_roi.width >= normalized_projected_point.x() &&
+        check_roi.y_offset + check_roi.height >= normalized_projected_point.y()) {
+        cluster.push_back(pcl::PointXYZ(*iter_orig_x, *iter_orig_y, *iter_orig_z));
+      }
+    }
+  }
+  // TODO: refine clusters before convert to PointCloud2
+
+  for (std::size_t i = 0; i < clusters.size(); ++i) {
+    const auto & cluster = clusters.at(i);
+    auto & feature_obj = output_objects.at(i);
+    sensor_msgs::msg::PointCloud2 ros_pc_cluster;
+    pcl::toROSMsg(cluster, ros_pc_cluster);
+    ros_pc_cluster.header = input_cloud_msg.header;
+    feature_obj.feature.cluster = ros_pc_cluster;
+    feature_obj.object.kinematics.pose_with_covariance.pose.position = getCentroid(ros_pc_cluster);
+
     output_msg.feature_objects.push_back(feature_obj);
   }
 }

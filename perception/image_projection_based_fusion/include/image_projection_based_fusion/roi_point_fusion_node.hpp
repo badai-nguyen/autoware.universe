@@ -8,6 +8,9 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 #include <tier4_perception_msgs/msg/detected_objects_with_feature.hpp>
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -25,6 +28,8 @@ using autoware_auto_perception_msgs::msg::DetectedObjects;
 using sensor_msgs::msg::PointCloud2;
 using tier4_perception_msgs::msg::DetectedObjectsWithFeature;
 using tier4_perception_msgs::msg::DetectedObjectWithFeature;
+
+using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
 
 class RoiPointCloudFusionNode : public rclcpp::Node
 {
@@ -62,6 +67,8 @@ protected:
     const PointCloud2 & input_cloud_msg, const std::size_t image_id,
     const DetectedObjectsWithFeature & input_roi_msg,
     const sensor_msgs::msg::CameraInfo & camera_info, DetectedObjectsWithFeature & output_msg);
+
+  geometry_msgs::msg::Point getCentroid(const sensor_msgs::msg::PointCloud2 & pointcloud);
 };
 }  // namespace image_projection_based_fusion
 
