@@ -16,12 +16,12 @@
   <arg name="input/camera_info6" default="/camera_info6"/>
   <arg name="input/rois7" default="rois7"/>
   <arg name="input/camera_info7" default="/camera_info7"/>
-  <arg name="input/clusters" default="/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud"/>
+  <arg name="roi_point_fusion/input/pointcloud" default="/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud"/>
   <arg name="output/clusters" default="labeled_clusters"/>
   <arg name="sync_param_path" default="$(find-pkg-share image_projection_based_fusion)/config/roi_sync.param.yaml"/>
   <arg name="remove_unknown" default="true"/>
   <arg name="trust_distance" default="100.0"/>
-
+  <arg name="fuse_unknown_only" default="true"/>
   <!-- for eval variable-->
   <arg name="input_rois_number" default="$(var input/rois_number)"/>
 
@@ -57,7 +57,7 @@
       <param name="remove_unknown" value="$(var remove_unknown)"/>
       <param name="trust_distance" value="$(var trust_distance)"/>
       <param from="$(var sync_param_path)"/>
-      <remap from="input" to="$(var input/clusters)"/>
+      <remap from="input" to="$(var roi_point_fusion/input/pointcloud)"/>
       <remap from="output" to="$(var output/clusters)"/>
 
       <!-- rois, camera and info -->
