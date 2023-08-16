@@ -156,7 +156,6 @@ void RoiPointCloudFusionNode::cameraInfoCallback(
 void RoiPointCloudFusionNode::roiCallback(
   const DetectedObjectsWithFeature::ConstSharedPtr input_roi_msg, const std::size_t roi_i)
 {
-  RCLCPP_INFO(get_logger(), "starting roiCallback ...");
   int64_t timestamp_nsec =
     (*input_roi_msg).header.stamp.sec * (int64_t)1e9 + (*input_roi_msg).header.stamp.nanosec;
   if (sub_std_pair_.second != nullptr) {
@@ -188,9 +187,7 @@ void RoiPointCloudFusionNode::roiCallback(
 void RoiPointCloudFusionNode::subCallback(
   const sensor_msgs::msg::PointCloud2::ConstSharedPtr input_msg)
 {
-  RCLCPP_INFO(get_logger(), "starting subCallback ...");
   if (sub_std_pair_.second != nullptr) {
-    RCLCPP_INFO(get_logger(), "subCallback publishing fused result ...");
     timer_->cancel();
     publish(fused_objects_);
     fused_objects_.feature_objects.clear();
@@ -200,43 +197,31 @@ void RoiPointCloudFusionNode::subCallback(
   std::lock_guard<std::mutex> lock(mutex_);
   auto period = std::chrono::duration_cast<std::chrono::nanoseconds>(
     std::chrono::duration<double, std::milli>(timeout_ms_));
-  RCLCPP_INFO(get_logger(), "subCallback timeout_ms_: %f", timeout_ms_);
   try {
     setPeriod(period.count());
   } catch (rclcpp::exceptions::RCLError & ex) {
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "%s", ex.what());
   }
-  RCLCPP_INFO(get_logger(), "subCallback continuing 1 ...");
   timer_->reset();
   DetectedObjectsWithFeature output_msg;
 
-  RCLCPP_INFO(get_logger(), "subCallback continuing 2 ...");
   output_msg.header = input_msg->header;
 
-  RCLCPP_INFO(get_logger(), "subCallback continuing 3 ...");
   int64_t timestamp_nsec =
     output_msg.header.stamp.sec * (int64_t)1e9 + output_msg.header.stamp.nanosec;
-
-  RCLCPP_INFO(get_logger(), "subCallback continuing 4 ...");
-  RCLCPP_INFO(get_logger(), "subCallback timestamp_nsec: %ld", timestamp_nsec);
   // if (fused_std_pair_.second == nullptr) {
-  //   RCLCPP_INFO(get_logger(), "subCallback initializing fused_std_pair_ ...");
   //   fused_std_pair_.first = timestamp_nsec;
   //   *(fused_std_pair_.second) = output_msg;
-  //   RCLCPP_INFO(get_logger(), "subCallback initialized fused_std_pair_ ...");
   // }
-  RCLCPP_INFO(get_logger(), "subCallback starting fusing ...");
   for (std::size_t roi_i = 0; roi_i < rois_number_; ++roi_i) {
     if (camera_info_map_.find(roi_i) == camera_info_map_.end()) {
       continue;
     }
-    RCLCPP_INFO(get_logger(), "subCallback fusing rois %zu", roi_i);
     if ((roi_stdmap_.at(roi_i)).size() > 0) {
       int64_t min_interval = 1e9;
       int64_t matched_stamp = -1;
       std::list<int64_t> outdate_stamps;
       for (const auto & [k, v] : roi_stdmap_.at(roi_i)) {
-        RCLCPP_INFO(get_logger(), "subCallback checking roi_stdmap_...");
         int64_t new_stamp = timestamp_nsec + input_offset_ms_.at(roi_i) * (int64_t)1e6;
         int64_t interval = abs(int64_t(k) - new_stamp);
         if (interval <= min_interval && interval <= match_threshold_ms_ * (int64_t)1e6) {
@@ -255,7 +240,6 @@ void RoiPointCloudFusionNode::subCallback(
       // fuseOnSingle
 
       if (matched_stamp != -1) {
-        RCLCPP_INFO(get_logger(), "subCallback fusing on single image");
         fuseOnSingleImage(
           *input_msg, roi_i, *((roi_stdmap_.at(roi_i))[matched_stamp]), camera_info_map_.at(roi_i),
           output_msg);
@@ -266,19 +250,16 @@ void RoiPointCloudFusionNode::subCallback(
   }
   if (std::count(is_fused_.begin(), is_fused_.end(), false) == static_cast<int>(rois_number_)) {
     timer_->cancel();
-    RCLCPP_INFO(get_logger(), "subCallback trying publishing result");
     publish(output_msg);
     sub_std_pair_.second = nullptr;
     fused_objects_.feature_objects.clear();
     std::fill(is_fused_.begin(), is_fused_.end(), false);
   } else {
-    RCLCPP_INFO(get_logger(), "subCallback updating sub_std_pair_ and fused_std_pair");
     sub_std_pair_.first = int64_t(timestamp_nsec);
     sub_std_pair_.second = std::make_shared<PointCloud2>(*input_msg);
     // fused_std_pair_.first = int64_t(timestamp_nsec);
     // *(fused_std_pair_.second) = output_msg;
     fused_objects_ = output_msg;
-    RCLCPP_INFO(get_logger(), "subCallback updated sub_std_pair_ and fused_std_pair");
   }
 }
 
@@ -290,7 +271,6 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
   if (input_cloud_msg.data.empty()) {
     return;
   }
-  RCLCPP_INFO(get_logger(), "starting fuseOnSingleImage ...");
   std::vector<DetectedObjectWithFeature> output_objects;
   for (const auto & feature_obj : input_roi_msg.feature_objects) {
     if (fuse_unknown_only_) {
@@ -307,11 +287,8 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
     return;
   }
 
-  RCLCPP_INFO(get_logger(), "add feature objects %zu", output_objects.size());
-
   std::vector<PointCloud> clusters;
   clusters.resize(output_objects.size());
-  RCLCPP_INFO(get_logger(), "clusters size %zu", clusters.size());
   Eigen::Matrix4d projection;
   projection << camera_info.p.at(0), camera_info.p.at(1), camera_info.p.at(2), camera_info.p.at(3),
     camera_info.p.at(4), camera_info.p.at(5), camera_info.p.at(6), camera_info.p.at(7),
@@ -332,8 +309,6 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
   // int min_x(camera_info.width), min_y(camera_info.height), max_x(0), max_y(0);
   // std::vector<Eigen::Vector2d> projected_points;
   // projected_points.reserve(transformed_cloud.data.size());
-  RCLCPP_INFO(get_logger(), "transformed_cloud size %zu", transformed_cloud.data.size());
-  // RCLCPP_INFO(get_logger(), "projected_points size %zu", projected_points.size());
   for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(transformed_cloud, "x"),
        iter_y(transformed_cloud, "y"), iter_z(transformed_cloud, "z"),
        iter_orig_x(input_cloud_msg, "x"), iter_orig_y(input_cloud_msg, "y"),
@@ -369,7 +344,8 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
     }
   }
   // TODO: refine clusters before convert to PointCloud2
-  RCLCPP_INFO(get_logger(), "extract clusters inside rois ");
+  // find the closest clustering in each object cluster:
+  
   for (std::size_t i = 0; i < clusters.size(); ++i) {
     const auto & cluster = clusters.at(i);
     auto & feature_obj = output_objects.at(i);
@@ -382,7 +358,6 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
     output_msg.feature_objects.push_back(feature_obj);
   }
 
-  RCLCPP_INFO(get_logger(), "completed fusing on single image");
 }
 void RoiPointCloudFusionNode::publish(const DetectedObjectsWithFeature & output_msg)
 {
