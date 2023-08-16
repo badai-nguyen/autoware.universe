@@ -62,11 +62,15 @@ private:
   std::vector<std::map<int64_t, DetectedObjectsWithFeature::ConstSharedPtr>> roi_stdmap_;
 
   std::mutex mutex_;
+  double cluster_threshold_distance_{1.0};
+  double cluster_threshold_radius_{0.5};
+  int min_cluster_size_{2};
 
 public:
   explicit RoiPointCloudFusionNode(const rclcpp::NodeOptions & options);
 
 protected:
+  PointCloud closest_cluster(const PointCloud & cluster);
   void timer_callback();
   void publish(const DetectedObjectsWithFeature & output_msg);
   void setPeriod(const int64_t new_period);

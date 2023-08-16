@@ -18,6 +18,26 @@
 #include <tf2_geometry_msgs/tf2_geometry_msgs.hpp>
 #endif
 
+#include <tier4_autoware_utils/geometry/geometry.hpp>
+
+// double distance2d(const pcl::PointXYZ & p1, const pcl::PointXYZ & p2)
+// {
+//   return
+// }
+pcl::PointXYZ getClosestPoint(const pcl::PointCloud<pcl::PointXYZ> & cluster)
+{
+  pcl::PointXYZ closest_point;
+  double min_dist = 1e6;
+  pcl::PointXYZ orig_point = pcl::PointXYZ(0.0, 0.0, 0.0);
+  for (std::size_t i = 0; i < cluster.points.size(); ++i) {
+    pcl::PointXYZ point = cluster.points.at(i);
+    if (min_dist > tier4_autoware_utils::calcDistance2d(point, orig_point)) {
+      min_dist = tier4_autoware_utils::calcDistance2d(point, orig_point);
+      closest_point = pcl::PointXYZ(point.x, point.y, point.z);
+    }
+  }
+  return closest_point;
+}
 namespace image_projection_based_fusion
 {
 RoiPointCloudFusionNode::RoiPointCloudFusionNode(const rclcpp::NodeOptions & options)
@@ -26,8 +46,11 @@ RoiPointCloudFusionNode::RoiPointCloudFusionNode(const rclcpp::NodeOptions & opt
   tf_listener_(tf_buffer_)
 {
   rois_number_ = static_cast<std::size_t>(declare_parameter("rois_number", 1));
+  min_cluster_size_ = static_cast<int>(declare_parameter("min_cluster_size", 2));
   match_threshold_ms_ = declare_parameter<double>("match_threshold_ms");
   timeout_ms_ = declare_parameter<double>("timeout_ms");
+  cluster_threshold_radius_ = declare_parameter<double>("cluster_threshold_radius", 0.5);
+  cluster_threshold_distance_ = declare_parameter<double>("cluster_threshold_distance", 1.0);
   fuse_unknown_only_ = declare_parameter<bool>("fuse_unknown_only", false);
 
   input_rois_topics_.resize(rois_number_);
@@ -87,7 +110,24 @@ RoiPointCloudFusionNode::RoiPointCloudFusionNode(const rclcpp::NodeOptions & opt
   timer_ = rclcpp::create_timer(
     this, get_clock(), period_ns, std::bind(&RoiPointCloudFusionNode::timer_callback, this));
 }
-
+PointCloud RoiPointCloudFusionNode::closest_cluster(const PointCloud & cluster)
+{
+  PointCloud out_cluster;
+  pcl::PointXYZ orig_point(pcl::PointXYZ(0.0, 0.0, 0.0));
+  pcl::PointXYZ closest_point = getClosestPoint(cluster);
+  double shortest_radius =
+    tier4_autoware_utils::calcDistance2d(closest_point, pcl::PointXYZ(0.0, 0.0, 0.0));
+  for (auto & point : cluster) {
+    double radius = tier4_autoware_utils::calcDistance2d(point, orig_point);
+    double distance = tier4_autoware_utils::calcDistance3d(point, closest_point);
+    if (
+      abs(radius - shortest_radius) < cluster_threshold_radius_ &&
+      distance < cluster_threshold_distance_) {
+      out_cluster.push_back(point);
+    }
+  }
+  return out_cluster;
+}
 geometry_msgs::msg::Point RoiPointCloudFusionNode::getCentroid(
   const sensor_msgs::msg::PointCloud2 & pointcloud)
 {
@@ -288,7 +328,9 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
   }
 
   std::vector<PointCloud> clusters;
+  std::vector<pcl::PointXYZ> closest_points;
   clusters.resize(output_objects.size());
+  closest_points.resize(output_objects.size());
   Eigen::Matrix4d projection;
   projection << camera_info.p.at(0), camera_info.p.at(1), camera_info.p.at(2), camera_info.p.at(3),
     camera_info.p.at(4), camera_info.p.at(5), camera_info.p.at(6), camera_info.p.at(7),
@@ -345,19 +387,25 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
   }
   // TODO: refine clusters before convert to PointCloud2
   // find the closest clustering in each object cluster:
-  
+
   for (std::size_t i = 0; i < clusters.size(); ++i) {
     const auto & cluster = clusters.at(i);
     auto & feature_obj = output_objects.at(i);
+    if (cluster.points.size() < std::size_t(min_cluster_size_)) {
+      continue;
+    }
+    auto refine_cluster = closest_cluster(cluster);
+    if (refine_cluster.points.size() < std::size_t(min_cluster_size_)) {
+      continue;
+    }
     sensor_msgs::msg::PointCloud2 ros_pc_cluster;
-    pcl::toROSMsg(cluster, ros_pc_cluster);
+    pcl::toROSMsg(refine_cluster, ros_pc_cluster);
     ros_pc_cluster.header = input_cloud_msg.header;
     feature_obj.feature.cluster = ros_pc_cluster;
     feature_obj.object.kinematics.pose_with_covariance.pose.position = getCentroid(ros_pc_cluster);
 
     output_msg.feature_objects.push_back(feature_obj);
   }
-
 }
 void RoiPointCloudFusionNode::publish(const DetectedObjectsWithFeature & output_msg)
 {
