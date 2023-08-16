@@ -20,10 +20,6 @@
 
 #include <tier4_autoware_utils/geometry/geometry.hpp>
 
-// double distance2d(const pcl::PointXYZ & p1, const pcl::PointXYZ & p2)
-// {
-//   return
-// }
 pcl::PointXYZ getClosestPoint(const pcl::PointCloud<pcl::PointXYZ> & cluster)
 {
   pcl::PointXYZ closest_point;
@@ -31,8 +27,9 @@ pcl::PointXYZ getClosestPoint(const pcl::PointCloud<pcl::PointXYZ> & cluster)
   pcl::PointXYZ orig_point = pcl::PointXYZ(0.0, 0.0, 0.0);
   for (std::size_t i = 0; i < cluster.points.size(); ++i) {
     pcl::PointXYZ point = cluster.points.at(i);
-    if (min_dist > tier4_autoware_utils::calcDistance2d(point, orig_point)) {
-      min_dist = tier4_autoware_utils::calcDistance2d(point, orig_point);
+    double dist_closest_point = tier4_autoware_utils::calcDistance2d(point, orig_point);
+    if (min_dist > dist_closest_point) {
+      min_dist = dist_closest_point;
       closest_point = pcl::PointXYZ(point.x, point.y, point.z);
     }
   }
@@ -205,20 +202,18 @@ void RoiPointCloudFusionNode::roiCallback(
       if (camera_info_map_.find(roi_i) == camera_info_map_.end()) {
         return;
       }
-    }
-    if (sub_std_pair_.second == nullptr) {
-      fused_objects_.header = input_roi_msg->header;
-    }
-    fuseOnSingleImage(
-      *(sub_std_pair_.second), roi_i, *input_roi_msg, camera_info_map_.at(roi_i), fused_objects_);
-    is_fused_.at(roi_i) = true;
+      fuseOnSingleImage(
+        *(sub_std_pair_.second), roi_i, *input_roi_msg, camera_info_map_.at(roi_i), fused_objects_);
+      is_fused_.at(roi_i) = true;
 
-    if (std::count(is_fused_.begin(), is_fused_.end(), true) == static_cast<int>(rois_number_)) {
-      timer_->cancel();
-      // publish(*(fused_std_pair_.second));
-      std::fill(is_fused_.begin(), is_fused_.end(), false);
-      sub_std_pair_.second = nullptr;
-      fused_objects_.feature_objects.clear();
+      if (std::count(is_fused_.begin(), is_fused_.end(), true) == static_cast<int>(rois_number_)) {
+        timer_->cancel();
+        publish(fused_objects_);
+        std::fill(is_fused_.begin(), is_fused_.end(), false);
+        sub_std_pair_.second = nullptr;
+        fused_objects_.feature_objects.clear();
+      }
+      return;
     }
   }
   (roi_stdmap_.at(roi_i))[timestamp_nsec] = input_roi_msg;
@@ -243,16 +238,14 @@ void RoiPointCloudFusionNode::subCallback(
     RCLCPP_WARN_THROTTLE(get_logger(), *get_clock(), 5000, "%s", ex.what());
   }
   timer_->reset();
-  DetectedObjectsWithFeature output_msg;
+  // DetectedObjectsWithFeature output_msg;
 
-  output_msg.header = input_msg->header;
+  // output_msg.header = input_msg->header;
+
+  fused_objects_.header = input_msg->header;
 
   int64_t timestamp_nsec =
-    output_msg.header.stamp.sec * (int64_t)1e9 + output_msg.header.stamp.nanosec;
-  // if (fused_std_pair_.second == nullptr) {
-  //   fused_std_pair_.first = timestamp_nsec;
-  //   *(fused_std_pair_.second) = output_msg;
-  // }
+    fused_objects_.header.stamp.sec * (int64_t)1e9 + fused_objects_.header.stamp.nanosec;
   for (std::size_t roi_i = 0; roi_i < rois_number_; ++roi_i) {
     if (camera_info_map_.find(roi_i) == camera_info_map_.end()) {
       continue;
@@ -282,15 +275,15 @@ void RoiPointCloudFusionNode::subCallback(
       if (matched_stamp != -1) {
         fuseOnSingleImage(
           *input_msg, roi_i, *((roi_stdmap_.at(roi_i))[matched_stamp]), camera_info_map_.at(roi_i),
-          output_msg);
+          fused_objects_);
         (roi_stdmap_.at(roi_i)).erase(matched_stamp);
         is_fused_.at(roi_i) = true;
       }
     }
   }
-  if (std::count(is_fused_.begin(), is_fused_.end(), false) == static_cast<int>(rois_number_)) {
+  if (std::count(is_fused_.begin(), is_fused_.end(), true) == static_cast<int>(rois_number_)) {
     timer_->cancel();
-    publish(output_msg);
+    publish(fused_objects_);
     sub_std_pair_.second = nullptr;
     fused_objects_.feature_objects.clear();
     std::fill(is_fused_.begin(), is_fused_.end(), false);
@@ -299,7 +292,7 @@ void RoiPointCloudFusionNode::subCallback(
     sub_std_pair_.second = std::make_shared<PointCloud2>(*input_msg);
     // fused_std_pair_.first = int64_t(timestamp_nsec);
     // *(fused_std_pair_.second) = output_msg;
-    fused_objects_ = output_msg;
+    // fused_objects_ = output_msg;
   }
 }
 
