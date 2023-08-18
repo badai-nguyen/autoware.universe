@@ -39,4 +39,67 @@ Eigen::Affine3d transformToEigen(const geometry_msgs::msg::Transform & t)
   return a;
 }
 
+
+PointCloud closest_cluster(
+  const PointCloud & cluster, 
+  const double cluster_threshold_radius,
+  const double cluster_threshold_distance)
+{
+  PointCloud out_cluster;
+  pcl::PointXYZ orig_point(pcl::PointXYZ(0.0, 0.0, 0.0));
+  pcl::PointXYZ closest_point = getClosestPoint(cluster);
+  double shortest_radius =
+    tier4_autoware_utils::calcDistance2d(closest_point, pcl::PointXYZ(0.0, 0.0, 0.0));
+  for (auto & point : cluster) {
+    double radius = tier4_autoware_utils::calcDistance2d(point, orig_point);
+    double distance = tier4_autoware_utils::calcDistance3d(point, closest_point);
+    if (
+      abs(radius - shortest_radius) < cluster_threshold_radius &&
+      distance < cluster_threshold_distance) {
+      out_cluster.push_back(point);
+    }
+  }
+  return out_cluster;
+}
+
+
+geometry_msgs::msg::Point getCentroid(
+  const sensor_msgs::msg::PointCloud2 & pointcloud)
+{
+  geometry_msgs::msg::Point centroid;
+  centroid.x = 0.0f;
+  centroid.y = 0.0f;
+  centroid.z = 0.0f;
+  for (sensor_msgs::PointCloud2ConstIterator<float> iter_x(pointcloud, "x"),
+       iter_y(pointcloud, "y"), iter_z(pointcloud, "z");
+       iter_x != iter_x.end(); ++iter_x, ++iter_y, ++iter_z) {
+    centroid.x += *iter_x;
+    centroid.y += *iter_y;
+    centroid.z += *iter_z;
+  }
+  const size_t size = pointcloud.width * pointcloud.height;
+  centroid.x = centroid.x / static_cast<float>(size);
+  centroid.y = centroid.y / static_cast<float>(size);
+  centroid.z = centroid.z / static_cast<float>(size);
+  return centroid;
+}
+
+//TODO : change to template
+pcl::PointXYZ getClosestPoint(const pcl::PointCloud<pcl::PointXYZ> & cluster)
+{
+  pcl::PointXYZ closest_point;
+  double min_dist = 1e6;
+  pcl::PointXYZ orig_point = pcl::PointXYZ(0.0, 0.0, 0.0);
+  for (std::size_t i = 0; i < cluster.points.size(); ++i) {
+    pcl::PointXYZ point = cluster.points.at(i);
+    double dist_closest_point = tier4_autoware_utils::calcDistance2d(point, orig_point);
+    if (min_dist > dist_closest_point) {
+      min_dist = dist_closest_point;
+      closest_point = pcl::PointXYZ(point.x, point.y, point.z);
+    }
+  }
+  return closest_point;
+}
+
+
 }  // namespace image_projection_based_fusion

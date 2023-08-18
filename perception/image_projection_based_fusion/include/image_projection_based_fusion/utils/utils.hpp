@@ -32,17 +32,34 @@
 #include <tf2_sensor_msgs/tf2_sensor_msgs.hpp>
 #endif
 
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
+
+#include <tier4_autoware_utils/geometry/geometry.hpp>
+
 #include <optional>
 #include <string>
 
 namespace image_projection_based_fusion
 {
 
+using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
 std::optional<geometry_msgs::msg::TransformStamped> getTransformStamped(
   const tf2_ros::Buffer & tf_buffer, const std::string & target_frame_id,
   const std::string & source_frame_id, const rclcpp::Time & time);
 
 Eigen::Affine3d transformToEigen(const geometry_msgs::msg::Transform & t);
+
+PointCloud closest_cluster(
+  const PointCloud & cluster, 
+  const double cluster_threshold_radius,
+  const double cluster_threshold_distance);
+geometry_msgs::msg::Point getCentroid(
+  const sensor_msgs::msg::PointCloud2 & pointcloud);
+
+
+pcl::PointXYZ getClosestPoint(const pcl::PointCloud<pcl::PointXYZ> & cluster);
 
 }  // namespace image_projection_based_fusion
 

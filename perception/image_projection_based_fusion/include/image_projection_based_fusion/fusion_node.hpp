@@ -31,6 +31,9 @@
 #include <message_filters/synchronizer.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl_conversions/pcl_conversions.h>
 
 #include <map>
 #include <memory>
@@ -49,6 +52,7 @@ using autoware_auto_perception_msgs::msg::DetectedObjects;
 using sensor_msgs::msg::PointCloud2;
 using tier4_perception_msgs::msg::DetectedObjectsWithFeature;
 using tier4_perception_msgs::msg::DetectedObjectWithFeature;
+using PointCloud = pcl::PointCloud<pcl::PointXYZ>;
 
 template <class Msg, class ObjType>
 class FusionNode : public rclcpp::Node
