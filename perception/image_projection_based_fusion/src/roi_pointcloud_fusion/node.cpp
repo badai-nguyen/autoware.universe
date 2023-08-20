@@ -87,7 +87,7 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
   if (output_objs.empty()) {
     return;
   }
-
+  // TODO: add making sure input_pointcloud_msg's frame_id is base_link
   Eigen::Matrix4d projection;
   projection << camera_info.p.at(0), camera_info.p.at(1), camera_info.p.at(2), camera_info.p.at(3),
     camera_info.p.at(4), camera_info.p.at(5), camera_info.p.at(6), camera_info.p.at(7),
@@ -139,13 +139,13 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
   }
 
   for (std::size_t i = 0; i < clusters.size(); ++i) {
-    const auto & cluster = clusters.at(i);
+    auto & cluster = clusters.at(i);
     auto & feature_obj = output_objs.at(i);
     if (cluster.points.size() < std::size_t(min_cluster_size_)) {
       continue;
     }
-    auto refine_cluster =
-      closest_cluster(cluster, cluster_threshold_radius_, cluster_threshold_distance_);
+    auto refine_cluster = closest_cluster(
+      cluster, cluster_threshold_radius_, cluster_threshold_distance_, min_cluster_size_);
     if (refine_cluster.points.size() < std::size_t(min_cluster_size_)) {
       continue;
     }

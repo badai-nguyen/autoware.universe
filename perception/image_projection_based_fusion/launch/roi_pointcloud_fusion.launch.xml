@@ -1,5 +1,7 @@
 <launch>
   <arg name="input/rois_number" default="6"/>
+  <arg name="cluster_threshold_radius" default="0.2"/>
+  <arg name="min_cluster_size" default="2"/>
   <arg name="input/rois0" default="rois0"/>
   <arg name="input/camera_info0" default="/camera_info0"/>
   <arg name="input/rois1" default="rois1"/>
@@ -34,6 +36,8 @@
   <group>
     <node pkg="image_projection_based_fusion" exec="roi_pointcloud_fusion_node" name="roi_pointcloud_fusion" output="screen">
       <param name="rois_number" value="$(var input/rois_number)"/>
+      <param name="cluster_threshold_radius" value="$(var cluster_threshold_radius)"/>
+      <param name="min_cluster_size" value="$(var min_cluster_size)"/>
       <param from="$(var sync_param_path)"/>
       <remap from="input" to="$(var input/pointcloud)"/>
       <remap from="output" to="$(var output/pointcloud)"/>

@@ -39,23 +39,33 @@ Eigen::Affine3d transformToEigen(const geometry_msgs::msg::Transform & t)
 }
 
 PointCloud closest_cluster(
-  const PointCloud & cluster, const double cluster_threshold_radius,
-  const double cluster_threshold_distance)
+  PointCloud & cluster, const double cluster_threshold_radius,
+  [[maybe_unused]] const double cluster_threshold_distance, const int min_cluster_size)
 {
-  // TODO: replace by Euclidean clustering from seed point
+  // suppose cluster's frame_id is base_link
+
+  // sort pointcloud by distance
+  auto func = [](const pcl::PointXYZ & p1, const pcl::PointXYZ & p2) {
+    return tier4_autoware_utils::calcDistance2d(pcl::PointXYZ(0.0, 0.0, 0.0), p1) <
+           tier4_autoware_utils::calcDistance2d(pcl::PointXYZ(0.0, 0.0, 0.0), p2);
+  };
+  std::sort(cluster.begin(), cluster.end(), func);
   PointCloud out_cluster;
-  pcl::PointXYZ orig_point(pcl::PointXYZ(0.0, 0.0, 0.0));
-  pcl::PointXYZ closest_point = getClosestPoint(cluster);
-  double shortest_radius =
-    tier4_autoware_utils::calcDistance2d(closest_point, pcl::PointXYZ(0.0, 0.0, 0.0));
   for (auto & point : cluster) {
-    double radius = tier4_autoware_utils::calcDistance2d(point, orig_point);
-    double distance = tier4_autoware_utils::calcDistance3d(point, closest_point);
-    if (
-      abs(radius - shortest_radius) < cluster_threshold_radius &&
-      distance < cluster_threshold_distance) {
+    if (out_cluster.empty()) {
       out_cluster.push_back(point);
+      continue;
     }
+    if (
+      tier4_autoware_utils::calcDistance2d(out_cluster.back(), point) < cluster_threshold_radius) {
+      out_cluster.push_back(point);
+      continue;
+    }
+    if (out_cluster.size() >= static_cast<std::size_t>(min_cluster_size)) {
+      return out_cluster;
+    }
+    out_cluster.clear();
+    out_cluster.push_back(point);
   }
   return out_cluster;
 }
@@ -103,8 +113,8 @@ void addShapeAndKinematic(
   autoware_auto_perception_msgs::msg::Shape shape;
   for (size_t i = 0; i < cluster2d_convex.size(); ++i) {
     geometry_msgs::msg::Point32 point;
-    point.x = cluster2d_convex.at(i).x / 1000.0 - polygon_centroid.x;
-    point.y = cluster2d_convex.at(i).y / 1000.0 - polygon_centroid.y;
+    point.x = cluster2d_convex.at(i).x / 1000.0;
+    point.y = cluster2d_convex.at(i).y / 1000.0;
     point.z = 0.0;
     shape.footprint.points.push_back(point);
   }
@@ -127,13 +137,7 @@ void addShapeAndKinematic(
   feature_obj.object.kinematics.pose_with_covariance.pose.orientation.w = 1;
 }
 
-// pcl::PointXYZ getCentroid(const pcl::PointCloud<pcl::PointXYZ> & cluster)
-// {
-//   pcl::PointXYZ centroid = pcl::PointXYZ(0.0,0.0,0.0);
-
-// }
-
-geometry_msgs::msg::Point getCentroid0(const sensor_msgs::msg::PointCloud2 & pointcloud)
+geometry_msgs::msg::Point getCentroid(const sensor_msgs::msg::PointCloud2 & pointcloud)
 {
   geometry_msgs::msg::Point centroid;
   centroid.x = 0.0f;
