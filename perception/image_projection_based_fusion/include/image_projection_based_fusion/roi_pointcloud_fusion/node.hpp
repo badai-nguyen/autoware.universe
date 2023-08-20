@@ -29,7 +29,6 @@ private:
   double cluster_threshold_distance_;
 
   rclcpp::Publisher<DetectedObjects>::SharedPtr pub_objects_ptr_;
-  std::vector<DetectedObjectWithFeature> fused_objects_;
   std::vector<DetectedObject> output_fused_objects_;
   /* data */
 public:

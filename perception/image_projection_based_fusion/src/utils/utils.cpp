@@ -42,6 +42,7 @@ PointCloud closest_cluster(
   const PointCloud & cluster, const double cluster_threshold_radius,
   const double cluster_threshold_distance)
 {
+  // TODO: replace by Euclidean clustering from seed point
   PointCloud out_cluster;
   pcl::PointXYZ orig_point(pcl::PointXYZ(0.0, 0.0, 0.0));
   pcl::PointXYZ closest_point = getClosestPoint(cluster);

@@ -47,7 +47,6 @@ void RoiPointCloudFusionNode::postprocess(__attribute__((unused))
 {
   const auto objects_sub_count = pub_objects_ptr_->get_subscription_count() +
                                  pub_objects_ptr_->get_intra_process_subscription_count();
-
   if (objects_sub_count < 1) {
     return;
   }
@@ -60,7 +59,6 @@ void RoiPointCloudFusionNode::postprocess(__attribute__((unused))
     pub_objects_ptr_->publish(output_msg);
   }
   output_fused_objects_.clear();
-  fused_objects_.clear();
   // return;
 }
 void RoiPointCloudFusionNode::fuseOnSingleImage(
@@ -74,6 +72,7 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
     return;
   }
   std::vector<DetectedObjectWithFeature> output_objs;
+
   for (const auto & feature_obj : input_roi_msg.feature_objects) {
     if (fuse_unknown_only_) {
       bool is_roi_label_unknown = feature_obj.object.classification.front().label ==
@@ -139,8 +138,6 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
     }
   }
 
-  // refine clusters and update fused_objects
-  // TODO move to postprocess
   for (std::size_t i = 0; i < clusters.size(); ++i) {
     const auto & cluster = clusters.at(i);
     auto & feature_obj = output_objs.at(i);
@@ -152,9 +149,7 @@ void RoiPointCloudFusionNode::fuseOnSingleImage(
     if (refine_cluster.points.size() < std::size_t(min_cluster_size_)) {
       continue;
     }
-    // add convel shape here
     addShapeAndKinematic(refine_cluster, feature_obj);
-    fused_objects_.push_back(feature_obj);
     output_fused_objects_.push_back(feature_obj.object);
   }
 }
