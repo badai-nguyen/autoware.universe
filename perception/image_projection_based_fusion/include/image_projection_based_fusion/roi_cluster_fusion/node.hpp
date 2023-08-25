@@ -23,7 +23,8 @@ namespace image_projection_based_fusion
 {
 
 class RoiClusterFusionNode
-: public FusionNode<DetectedObjectsWithFeature, DetectedObjectWithFeature>
+: public FusionNode<
+    DetectedObjectsWithFeature, DetectedObjectWithFeature, DetectedObjectsWithFeature>
 {
 public:
   explicit RoiClusterFusionNode(const rclcpp::NodeOptions & options);

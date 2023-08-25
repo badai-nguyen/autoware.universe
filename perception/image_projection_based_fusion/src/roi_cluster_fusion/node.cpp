@@ -34,7 +34,8 @@ namespace image_projection_based_fusion
 {
 
 RoiClusterFusionNode::RoiClusterFusionNode(const rclcpp::NodeOptions & options)
-: FusionNode<DetectedObjectsWithFeature, DetectedObjectWithFeature>("roi_cluster_fusion", options)
+: FusionNode<DetectedObjectsWithFeature, DetectedObjectWithFeature, DetectedObjectsWithFeature>(
+    "roi_cluster_fusion", options)
 {
   use_iou_x_ = declare_parameter("use_iou_x", true);
   use_iou_y_ = declare_parameter("use_iou_y", false);
