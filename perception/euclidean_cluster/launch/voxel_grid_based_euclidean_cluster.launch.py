@@ -163,6 +163,33 @@ def launch_setup(context, *args, **kwargs):
         extra_arguments=[{"use_intra_process_comms": True}],
     )
 
+    # add cropbox for hight pointcloud 
+    high_pointcloud_cropbox_component = ComposableNode(
+        package="pointcloud_preprocessor",
+        namespace=ns,
+        plugin="pointcloud_preprocessor::CropBoxFilterComponent",
+        name="high_pointcloud_cropbox_filter",
+        remappings=[
+            ("input", "downsampled/concatenated/pointcloud"),
+            ("output", "downsampled/low/pointcloud"),
+        ],
+        parameters=[
+            {
+                "input_frame": "base_link",
+                "output_frame": "base_link",
+                "min_x": -100.0,
+                "max_x": 150.0,
+                "min_y": -70.0,
+                "max_y": 70.0,
+                "max_z": 2.0,
+                "min_z": -2.5,
+                "negative": False,
+            },
+        ],
+        extra_arguments=[
+            {"use_intra_process_comms": True}
+        ],
+    )
     # set euclidean cluster as a component
     euclidean_cluster_component = ComposableNode(
         package=pkg,
@@ -170,7 +197,7 @@ def launch_setup(context, *args, **kwargs):
         plugin="euclidean_cluster::VoxelGridBasedEuclideanClusterNode",
         name="euclidean_cluster",
         remappings=[
-            ("input", "downsampled/concatenated/pointcloud"),
+            ("input", "downsampled/low/pointcloud"),
             ("output", LaunchConfiguration("output_clusters")),
         ],
         parameters=[load_composable_node_param("voxel_grid_based_euclidean_param_path")],
@@ -185,6 +212,7 @@ def launch_setup(context, *args, **kwargs):
             voxel_grid_filter_component,
             outlier_filter_component,
             downsample_concat_component,
+            high_pointcloud_cropbox_component,
             euclidean_cluster_component,
         ],
         output="screen",
