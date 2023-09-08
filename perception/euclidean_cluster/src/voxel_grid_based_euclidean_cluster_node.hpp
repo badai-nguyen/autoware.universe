@@ -39,6 +39,9 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr debug_pub_;
 
   std::shared_ptr<VoxelGridBasedEuclideanCluster> cluster_;
+  double filter_dist_thresh_;
+  double filter_height_thresh_;
+  
 };
 
 }  // namespace euclidean_cluster

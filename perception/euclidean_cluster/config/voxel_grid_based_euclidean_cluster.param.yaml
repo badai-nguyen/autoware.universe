@@ -13,3 +13,5 @@
     min_y: -70.0
     max_z: 4.5
     min_z: -4.5
+    filter_dist_thresh: 30.0
+    filter_height_thresh: 2.0

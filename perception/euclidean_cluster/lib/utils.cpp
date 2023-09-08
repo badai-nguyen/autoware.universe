@@ -21,6 +21,27 @@
 
 namespace euclidean_cluster
 {
+
+std::vector<pcl::PointCloud<pcl::PointXYZ>> clusterHeightFilter(
+  const std::vector<pcl::PointCloud<pcl::PointXYZ>> & in_clusters,
+  const double & height_threshold, const double & dist_threshold)
+{
+  std::vector<pcl::PointCloud<pcl::PointXYZ>> out_clusters{};
+  for (auto & cluster : in_clusters){
+    double min_dist = 200.0f;
+    double min_z = 10.0f;
+    for(auto & point : cluster){
+      double distance = std::hypot(point.x, point.y);
+      min_dist = distance < min_dist ? distance : min_dist;
+      min_z  = point.z < min_z ? point.z : min_z;
+    }
+    if(min_dist < dist_threshold && min_z > height_threshold){
+      continue;
+    }
+    out_clusters.push_back(cluster);
+  }  
+  return out_clusters;
+}
 geometry_msgs::msg::Point getCentroid(const sensor_msgs::msg::PointCloud2 & pointcloud)
 {
   geometry_msgs::msg::Point centroid;

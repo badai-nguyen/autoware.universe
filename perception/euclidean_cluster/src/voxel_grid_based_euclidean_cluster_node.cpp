@@ -30,6 +30,8 @@ VoxelGridBasedEuclideanClusterNode::VoxelGridBasedEuclideanClusterNode(
   const float tolerance = this->declare_parameter("tolerance", 1.0);
   const float voxel_leaf_size = this->declare_parameter("voxel_leaf_size", 0.5);
   const int min_points_number_per_voxel = this->declare_parameter("min_points_number_per_voxel", 3);
+  filter_dist_thresh_ = this->declare_parameter("filter_dist_thresh",30.0f);
+  filter_height_thresh_ = this->declare_parameter("filter_height_thresh",2.0f);
   cluster_ = std::make_shared<VoxelGridBasedEuclideanCluster>(
     use_height, min_cluster_size, max_cluster_size, tolerance, voxel_leaf_size,
     min_points_number_per_voxel);
@@ -54,6 +56,10 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
   // clustering
   std::vector<pcl::PointCloud<pcl::PointXYZ>> clusters;
   cluster_->cluster(raw_pointcloud_ptr, clusters);
+
+  // filtering clusters
+
+  // auto filtered_clusters = clusterHeightFilter(clusters, filter_height_thresh_, filter_dist_thresh_);
 
   // build output msg
   tier4_perception_msgs::msg::DetectedObjectsWithFeature output;
