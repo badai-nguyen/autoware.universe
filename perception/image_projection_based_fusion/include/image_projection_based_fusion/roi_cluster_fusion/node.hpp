@@ -49,8 +49,10 @@ protected:
   const float min_roi_existence_prob_ =
     0.1;  // keep small value to lessen affect on merger object stage
   bool remove_unknown_;
-  float trust_distance_;
+  double trust_distance_;
+  double iou_x_use_distance_threshold_;
 
+  double get_object_square_distance(const DetectedObjectWithFeature & obj);
   bool filter_by_distance(const DetectedObjectWithFeature & obj);
   bool out_of_scope(const DetectedObjectWithFeature & obj);
   // bool CheckUnknown(const DetectedObjectsWithFeature & obj);
