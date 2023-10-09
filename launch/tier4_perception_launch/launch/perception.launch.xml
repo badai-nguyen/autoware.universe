@@ -91,7 +91,7 @@
 
   <!-- Camera-Lidar fusion parameters -->
   <arg name="remove_unknown" default="true"/>
-  <arg name="fusion_distance" default="100.0"/>
+  <arg name="fusion_distance" default="150.0"/>
   <arg name="trust_object_distance" default="100.0"/>
 
   <!-- Perception module -->

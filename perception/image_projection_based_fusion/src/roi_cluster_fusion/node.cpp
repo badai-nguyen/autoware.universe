@@ -191,7 +191,7 @@ void RoiClusterFusionNode::fuseOnSingleImage(
       if (max_iou < iou && passed_inside_cluster_gate) {
         index = cluster_map.first;
         max_iou = iou;
-        associated = true;
+        // associated = true;
       }
     }
     if (!output_cluster_msg.feature_objects.empty()) {

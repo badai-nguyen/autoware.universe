@@ -1,5 +1,5 @@
 <launch>
-  <arg name="input/rois_number" default="1"/>
+  <arg name="input/rois_number" default="6"/>
   <arg name="input/rois0" default="rois0"/>
   <arg name="input/camera_info0" default="/camera_info0"/>
   <arg name="input/rois1" default="rois1"/>
@@ -47,7 +47,8 @@
   <arg name="input/image7" default="/image_raw7"/>
   <group>
     <node pkg="image_projection_based_fusion" exec="roi_cluster_fusion_node" name="roi_cluster_fusion" output="screen">
-      <param name="iou_mode" value="iou"/>
+      <param name="trust_object_iou_mode" value="iou"/>
+      <param name="non_trust_object_iou_mode" value="iou_x"/>
       <param name="use_cluster_semantic_type" value="false"/>
       <param name="only_allow_inside_cluster" value="true"/>
       <param name="roi_scale_factor" value="1.1"/>
