@@ -95,6 +95,7 @@
   <arg name="remove_unknown" default="true"/>
   <arg name="fusion_distance" default="100.0"/>
   <arg name="trust_object_distance" default="100.0"/>
+  <arg name="use_detection_by_tracker" default="true"/>
 
   <!-- Perception module -->
   <group>
@@ -173,6 +174,7 @@
           <arg name="fusion_distance" value="$(var fusion_distance)"/>
           <arg name="trust_object_distance" value="$(var trust_object_distance)"/>
           <arg name="use_roi_based_cluster" value="$(var use_roi_based_cluster)"/>
+          <arg name="use_detection_by_tracker" value="$(var use_detection_by_tracker)"/>
         </include>
       </group>
 
