@@ -38,6 +38,7 @@
   <arg name="score_threshold" default="0.35"/>
   <arg name="remove_unknown" default="true"/>
   <arg name="trust_distance" default="30.0"/>
+  <arg name="use_image_segmentation_filter" default="false"/>
 
   <!-- Jetson AGX -->
   <!-- <include file="$(find-pkg-share tensorrt_yolo)/launch/yolo.launch.xml">
@@ -64,12 +65,30 @@
     </include>
   </group>
 
+  <!-- Pointcloud filtering by image semantic segmentation model -->
+  <group if="$(var use_image_segmentation_filter)">
+    <let name="segmentation_filter/input_pointcloud" value="pointcloud_map_filtered/pointcloud" if="$(var use_pointcloud_map)"/>
+    <let name="segmentation_filter/input_pointcloud" value="input/obstacle_segmentation/pointcloud" unless="$(var use_pointcloud_map)"/>
+    <include file="$(find-pkg-share image_projection_based_fusion)/launch/segmentation_pointcloud_fusion.launch.xml">
+      <arg name="input/pointcloud" value="pointcloud_map_filtered/pointcloud"/>
+      <arg name="output/pointcloud" value="image_segmentation_filtered/pointcloud"/>
+    </include>
+  </group>
   <!-- Clustering -->
   <group>
     <push-ros-namespace namespace="clustering"/>
     <group>
-      <let name="clustering/input/pointcloud" value="/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud" if="$(var use_pointcloud_map)"/>
-      <let name="clustering/input/pointcloud" value="$(var input/obstacle_segmentation/pointcloud)" unless="$(var use_pointcloud_map)"/>
+      <let name="clustering/input/pointcloud" value="/perception/object_recognition/detection/image_segmentation_filtered/pointcloud" if="$(var use_image_segmentation_filter)"/>
+      <let
+        name="clustering/input/pointcloud"
+        value="/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud"
+        if="$(eval &quot;'$(var use_image_segmentation_filter)'=='false' and '$(var use_pointcloud_map)'=='true' &quot;)"
+      />
+      <let
+        name="clustering/input/pointcloud"
+        value="$(var input/obstacle_segmentation/pointcloud)"
+        if="$(eval &quot;'$(var use_image_segmentation_filter)'=='false' and '$(var use_pointcloud_map)'=='false' &quot;)"
+      />
       <include file="$(find-pkg-share euclidean_cluster)/launch/voxel_grid_based_euclidean_cluster.launch.xml">
         <arg name="input_pointcloud" value="$(var clustering/input/pointcloud)"/>
         <arg name="output_clusters" value="clusters"/>
