@@ -1479,7 +1479,11 @@ std::vector<PredictedRefPath> MapBasedPredictionNode::getPredictedReferencePath(
     addReferencePathsLocal(right_paths, Maneuver::RIGHT_LANE_CHANGE);
     addReferencePathsLocal(center_paths, Maneuver::LANE_FOLLOW);
   }
-
+  if(current_lanelets_data.size() == 1 && calculateLocalLikelihood(current_lanelets_data.at(0).lanelet, object) && all_ref_paths.size() == 1){
+    auto & ref_path = all_ref_paths.at(0);
+    auto & pose = object.kinematics.pose_with_covariance.pose;
+    ref_path.path.insert(ref_path.path.begin(), pose);
+  }
   return all_ref_paths;
 }
 
