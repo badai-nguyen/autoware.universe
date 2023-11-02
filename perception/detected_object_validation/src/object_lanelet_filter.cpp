@@ -41,6 +41,8 @@ ObjectLaneletFilterNode::ObjectLaneletFilterNode(const rclcpp::NodeOptions & nod
   filter_target_.MOTORCYCLE = declare_parameter<bool>("filter_target_label.MOTORCYCLE", false);
   filter_target_.BICYCLE = declare_parameter<bool>("filter_target_label.BICYCLE", false);
   filter_target_.PEDESTRIAN = declare_parameter<bool>("filter_target_label.PEDESTRIAN", false);
+  inside_lanelet_footprint_ratio_threshold_ =
+    declare_parameter<double>("inside_lanelet_footprint_ratio_threshold");
 
   // Set publisher/subscriber
   map_sub_ = this->create_subscription<autoware_auto_mapping_msgs::msg::HADMapBin>(
@@ -168,10 +170,17 @@ lanelet::ConstLanelets ObjectLaneletFilterNode::getIntersectedLanelets(
 bool ObjectLaneletFilterNode::isPolygonOverlapLanelets(
   const Polygon2d & polygon, const lanelet::ConstLanelets & intersected_lanelets)
 {
+  size_t outer_points_nb = polygon.outer().size();
+  size_t inside_lanelet_points_nb = 0;
   for (const auto & lanelet : intersected_lanelets) {
     if (!boost::geometry::disjoint(polygon, lanelet.polygon2d().basicPolygon())) {
-      return true;
+      inside_lanelet_points_nb++;
     }
+  }
+  if (
+    static_cast<double>(inside_lanelet_points_nb / outer_points_nb) >
+    inside_lanelet_footprint_ratio_threshold_) {
+    return true;
   }
   return false;
 }

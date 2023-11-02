@@ -9,3 +9,6 @@
       MOTORCYCLE : false
       BICYCLE : false
       PEDESTRIAN : false
+    # object footprint ratio threshold to be considered as inside lanelet
+    # should be greater than 0.0
+    inside_lanelet_footprint_ratio_threshold: 0.001

@@ -58,7 +58,7 @@ private:
   tf2_ros::TransformListener tf_listener_;
 
   utils::FilterTargetLabel filter_target_;
-
+  double inside_lanelet_footprint_ratio_threshold_{1e-5};
   LinearRing2d getConvexHull(const autoware_auto_perception_msgs::msg::DetectedObjects &);
   lanelet::ConstLanelets getIntersectedLanelets(
     const LinearRing2d &, const lanelet::ConstLanelets &);
