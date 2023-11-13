@@ -25,8 +25,13 @@
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/synchronizer.h>
+#include <pcl/filters/crop_hull.h>
+#include <pcl/kdtree/kdtree_flann.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/search/kdtree.h>
+#include <pcl/search/pcl_search.h>
+#include <pcl_conversions/pcl_conversions.h>
 #include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_listener.h>
 
@@ -35,12 +40,57 @@
 #include <vector>
 namespace obstacle_pointcloud_based_validator
 {
+
 struct PointsNumThresholdParam
 {
   std::vector<int64_t> min_points_num;
   std::vector<int64_t> max_points_num;
   std::vector<double> min_points_and_distance_ratio;
 };
+
+class Validator
+{
+private:
+  PointsNumThresholdParam points_num_threshold_param_;
+
+public:
+  explicit Validator(PointsNumThresholdParam & points_num_threshold_param);
+  // virtual void setInputCloud(pcl::PointCloud<pcl::PointXY>::Ptr obstacle_pointcloud) = 0;
+  virtual void setInputCloud(
+    const sensor_msgs::msg::PointCloud2::ConstSharedPtr & input_pointcloud) = 0;
+  virtual void get_neighbor_pc() = 0;
+  virtual bool validate_object(
+    const autoware_auto_perception_msgs::msg::DetectedObject & transformed_object) = 0;
+  virtual std::optional<float> getMaxRadius(
+    const autoware_auto_perception_msgs::msg::DetectedObject & object) = 0;
+  // virtual getPointCloudWithinObject(autoware_auto_perception_msgs::msg::DetectedObject & object,
+  // pcl::PointCloud<PointT> & neight_pointcloud) = 0;
+  virtual pcl::PointXYZ getObjectCenter(
+    autoware_auto_perception_msgs::msg::DetectedObject & object) = 0;
+  size_t getThresholdPointCloud(const autoware_auto_perception_msgs::msg::DetectedObject & object);
+};
+
+class Validator2D : public Validator
+{
+private:
+  pcl::PointCloud<pcl::PointXY>::Ptr obstacle_pointcloud_;
+  pcl::search::Search<pcl::PointXY>::Ptr kdtree_;
+
+public:
+  explicit Validator2D(PointsNumThresholdParam & points_num_threshold_param);
+  void setInputCloud(const sensor_msgs::msg::PointCloud2::ConstSharedPtr & input_cloud);
+  void get_neighbor_pc();
+  bool validate_object(
+    const autoware_auto_perception_msgs::msg::DetectedObject & transformed_object);
+  std::optional<float> getMaxRadius(
+    const autoware_auto_perception_msgs::msg::DetectedObject & object);
+  pcl::PointXYZ getObjectCenter(
+    autoware_auto_perception_msgs::msg::DetectedObject & object) override;
+  std::optional<size_t> getPointCloudWithinObject(
+    const autoware_auto_perception_msgs::msg::DetectedObject & object,
+    const pcl::PointCloud<pcl::PointXY>::Ptr pointcloud);
+};
+
 class ObstaclePointCloudBasedValidator : public rclcpp::Node
 {
 public:
@@ -62,6 +112,7 @@ private:
 
   std::shared_ptr<Debugger> debugger_;
   bool using_2d_validator_;
+  std::unique_ptr<Validator> validator_;
 
 private:
   void onObjectsAndObstaclePointCloud(
