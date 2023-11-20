@@ -38,7 +38,7 @@
   <arg name="score_threshold" default="0.35"/>
   <arg name="remove_unknown" default="true"/>
   <arg name="trust_distance" default="30.0"/>
-  <arg name="use_image_segmentation_filter" default="false"/>
+  <arg name="use_image_segmentation_filter" default="true"/>
 
   <!-- Jetson AGX -->
   <!-- <include file="$(find-pkg-share tensorrt_yolo)/launch/yolo.launch.xml">
