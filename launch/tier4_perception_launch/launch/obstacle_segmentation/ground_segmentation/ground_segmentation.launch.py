@@ -244,6 +244,7 @@ class GroundSegmentationPipeline:
                     self.vehicle_info,
                     {"input_frame": "base_link"},
                     {"output_frame": "base_link"},
+                    {"omp_num_threads": 8},
                 ],
                 extra_arguments=[
                     {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
@@ -474,7 +475,13 @@ class GroundSegmentationPipeline:
 def launch_setup(context, *args, **kwargs):
     pipeline = GroundSegmentationPipeline(context)
 
-    components = []
+    glog_component = ComposableNode(
+        package="glog_component",
+        plugin="GlogComponent",
+        name="glog_component",
+    )
+
+    components = [glog_component]
     components.extend(
         pipeline.create_single_frame_obstacle_segmentation_components(
             input_topic=LaunchConfiguration("input/pointcloud"),
