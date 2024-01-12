@@ -176,6 +176,9 @@ private:
   size_t radial_dividers_num_;
   VehicleInfo vehicle_info_;
 
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr ground_pc_pub_;
+  
+
   /*!
    * Output transformed PointCloud from in_cloud_ptr->header.frame_id to in_target_frame
    * @param[in] in_target_frame Coordinate system to perform transform
@@ -241,7 +244,7 @@ private:
    */
   void extractObjectPoints(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, const pcl::PointIndices & in_indices,
-    pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_ground_cloud_ptr);
 
   /** \brief Parameter service callback result : needed to be hold */
   OnSetParametersCallbackHandle::SharedPtr set_param_res_;
