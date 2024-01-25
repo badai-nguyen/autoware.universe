@@ -285,9 +285,10 @@ void ScanGroundFilterComponent::recheckGroundCluster(
 }
 void ScanGroundFilterComponent::classifyPointCloudGridScan(
   std::vector<PointCloudRefVector> & in_radial_ordered_clouds,
-  pcl::PointIndices & out_no_ground_indices)
+  pcl::PointIndices & out_no_ground_indices, pcl::PointIndices & out_ground_indices)
 {
   out_no_ground_indices.indices.clear();
+  out_ground_indices.indices.clear();
   for (size_t i = 0; i < in_radial_ordered_clouds.size(); ++i) {
     PointsCentroid ground_cluster;
     ground_cluster.initialize();
@@ -329,6 +330,7 @@ void ScanGroundFilterComponent::classifyPointCloudGridScan(
         !initialized_first_gnd_grid && abs(global_slope_p) < global_slope_max_angle_rad_ &&
         abs(p->orig_point->z) < non_ground_height_threshold_local) {
         ground_cluster.addPoint(p->radius, p->orig_point->z, p->orig_index);
+        out_ground_indices.indices.push_back(p->orig_index);
         p->point_state = PointLabel::GROUND;
         initialized_first_gnd_grid = static_cast<bool>(p->grid_id - prev_p->grid_id);
         prev_p = p;
@@ -407,6 +409,7 @@ void ScanGroundFilterComponent::classifyPointCloudGridScan(
         out_no_ground_indices.indices.push_back(p->orig_index);
       } else if (p->point_state == PointLabel::GROUND) {
         ground_cluster.addPoint(p->radius, p->orig_point->z, p->orig_index);
+        out_ground_indices.indices.push_back(p->orig_index);
       }
       prev_p = p;
     }
@@ -530,26 +533,10 @@ void ScanGroundFilterComponent::classifyPointCloud(
 
 void ScanGroundFilterComponent::extractObjectPoints(
   const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, const pcl::PointIndices & in_indices,
-  pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_ground_cloud_ptr)
+  pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr)
 {
-  pcl::PointIndices::Ptr ground_indices(new pcl::PointIndices);
-  ground_indices->indices = in_indices.indices;
-  std::sort(ground_indices->indices.begin(), ground_indices->indices.end());
-  
   for (const auto & i : in_indices.indices) {
     out_object_cloud_ptr->points.emplace_back(in_cloud_ptr->points[i]);
-  }
-  int prev_index = 0;
-  for (auto curr_idx = ground_indices->indices.begin()+1; curr_idx != ground_indices->indices.end(); ++curr_idx) {
-    if (*curr_idx - prev_index > 1) {
-      for (auto i = prev_index+1; i < *curr_idx; ++i) {
-        out_ground_cloud_ptr->points.emplace_back(in_cloud_ptr->points[i]);
-      }
-    }
-    prev_index = *curr_idx;
-  }
-  for (size_t i = prev_index+1; i < in_cloud_ptr->points.size(); ++i) {
-    out_ground_cloud_ptr->points.emplace_back(in_cloud_ptr->points[i]);
   }
 }
 
@@ -565,6 +552,7 @@ void ScanGroundFilterComponent::filter(
   std::vector<PointCloudRefVector> radial_ordered_points;
 
   pcl::PointIndices no_ground_indices;
+  pcl::PointIndices ground_indices;
   pcl::PointCloud<pcl::PointXYZ>::Ptr no_ground_cloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
   no_ground_cloud_ptr->points.reserve(current_sensor_cloud_ptr->points.size());
   pcl::PointCloud<pcl::PointXYZ>::Ptr ground_cloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
@@ -573,13 +561,14 @@ void ScanGroundFilterComponent::filter(
 
   if (elevation_grid_mode_) {
     convertPointcloudGridScan(current_sensor_cloud_ptr, radial_ordered_points);
-    classifyPointCloudGridScan(radial_ordered_points, no_ground_indices);
+    classifyPointCloudGridScan(radial_ordered_points, no_ground_indices,ground_indices);
   } else {
     convertPointcloud(current_sensor_cloud_ptr, radial_ordered_points);
     classifyPointCloud(radial_ordered_points, no_ground_indices);
   }
 
-  extractObjectPoints(current_sensor_cloud_ptr, no_ground_indices, no_ground_cloud_ptr, ground_cloud_ptr);
+  extractObjectPoints(current_sensor_cloud_ptr, no_ground_indices, no_ground_cloud_ptr);
+  extractObjectPoints(current_sensor_cloud_ptr, ground_indices, ground_cloud_ptr);
   auto ground_cloud_msg_ptr = std::make_shared<PointCloud2>();
   pcl::toROSMsg(*ground_cloud_ptr, *ground_cloud_msg_ptr);
   ground_cloud_msg_ptr->header = input->header;

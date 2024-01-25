@@ -225,7 +225,8 @@ private:
     pcl::PointIndices & out_no_ground_indices);
   void classifyPointCloudGridScan(
     std::vector<PointCloudRefVector> & in_radial_ordered_clouds,
-    pcl::PointIndices & out_no_ground_indices);
+    pcl::PointIndices & out_no_ground_indices, 
+    pcl::PointIndices & out_ground_indices);
   /*!
    * Re-classifies point of ground cluster based on their height
    * @param gnd_cluster Input ground cluster for re-checking
@@ -244,7 +245,7 @@ private:
    */
   void extractObjectPoints(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, const pcl::PointIndices & in_indices,
-    pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr, pcl::PointCloud<pcl::PointXYZ>::Ptr out_ground_cloud_ptr);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr);
 
   /** \brief Parameter service callback result : needed to be hold */
   OnSetParametersCallbackHandle::SharedPtr set_param_res_;
