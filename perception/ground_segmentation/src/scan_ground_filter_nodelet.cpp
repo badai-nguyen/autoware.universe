@@ -400,8 +400,6 @@ void ScanGroundFilterComponent::classifyPointCloudGridScan(
         p->radius - gnd_grids.back().radius < gnd_grid_continual_thresh_ * p->grid_size) {
         checkContinuousGndGrid(*p, gnd_grids);
 
-      } else if (p->radius - gnd_grids.back().radius < gnd_grid_continual_thresh_ * p->grid_size) {
-        checkDiscontinuousGndGrid(*p, gnd_grids);
       } else {
         checkBreakGndGrid(*p, gnd_grids);
       }
