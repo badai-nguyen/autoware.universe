@@ -1,0 +1,17 @@
+<launch>
+  <arg name="input_topic_name" default="/perception/obstacle_segmentation/pointcloud"/>
+  <arg name="output_topic_name" default="/sensing/lidar/top/dynamic_statistical_outlier_filter/pointcloud"/>
+
+  <arg name="input_frame" default="base_link"/>
+  <arg name="output_frame" default="base_link"/>
+
+  <node pkg="pointcloud_preprocessor" exec="dynamic_statistical_outlier_filter_node" name="dynamic_statistical_outlier_filter_node">
+    <remap from="input" to="$(var input_topic_name)"/>
+    <remap from="output" to="$(var output_topic_name)"/>
+    <param name="input_frame" value="$(var input_frame)"/>
+    <param name="output_frame" value="$(var output_frame)"/>
+    <param name="mean_k" value="5"/>
+    <param name="std_mul" value="0.01"/>
+    <param name="range_mul" value="0.5"/>
+  </node>
+</launch>
