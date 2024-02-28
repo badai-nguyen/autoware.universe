@@ -43,6 +43,11 @@ private:
   int mean_k_;
   double std_mul_;
   double range_mul;
+  double x_max_;
+  double x_min_;
+  double y_max_;
+  double y_min_;
+
   /** \brief Parameter service callback result : needed to be hold */
   OnSetParametersCallbackHandle::SharedPtr set_param_res_;
 

@@ -20,8 +20,9 @@
 #include <vector>
 namespace pointcloud_preprocessor
 {
-using PointT = pcl::PointXYZI;
-ScalableStatisticalFilterComponent::ScalableStatisticalFilterComponent(const rclcpp::NodeOptions & options)
+using PointT = pcl::PointXYZ;
+ScalableStatisticalFilterComponent::ScalableStatisticalFilterComponent(
+  const rclcpp::NodeOptions & options)
 : Filter("DynamicStatisticalOutlierFilter", options)
 {
   // initialize debug tool
@@ -39,6 +40,10 @@ ScalableStatisticalFilterComponent::ScalableStatisticalFilterComponent(const rcl
     mean_k_ = static_cast<int>(declare_parameter("mean_k", 5));
     std_mul_ = static_cast<double>(declare_parameter("std_mul", 0.01));
     range_mul = static_cast<double>(declare_parameter("range_mul", 0.05));
+    x_max_ = static_cast<double>(declare_parameter("x_max", 60.0));
+    x_min_ = static_cast<double>(declare_parameter("x_min", 0.0));
+    y_max_ = static_cast<double>(declare_parameter("y_max", 25.0));
+    y_min_ = static_cast<double>(declare_parameter("y_min", -25.0));
   }
 
   using std::placeholders::_1;
@@ -102,6 +107,11 @@ void ScalableStatisticalFilterComponent::filter(
   int i = 0;
   for (pcl::PointCloud<PointT>::iterator it = input_cloud->begin(); it != input_cloud->end();
        ++it) {
+    if(it->x > x_max_ || it->x < x_min_ || it->y > y_max_ || it->y < y_min_){
+      i++;
+      filtered_cloud->push_back(*it);
+      continue;
+    }
     // calculate distance of every point from the sensor
     float range = sqrt(pow(it->x, 2) + pow(it->y, 2) + pow(it->z, 2));
     // dynamic threshold: as a point is farther away from the sensor,
@@ -137,16 +147,15 @@ rcl_interfaces::msg::SetParametersResult ScalableStatisticalFilterComponent::par
 {
   std::scoped_lock lock(mutex_);
 
-    mean_k_ = static_cast<int>(declare_parameter("mean_k", 5));
-    std_mul_ = static_cast<double>(declare_parameter("std_mul", 0.01));
-    range_mul = static_cast<double>(declare_parameter("range_mul", 0.05));
+  mean_k_ = static_cast<int>(declare_parameter("mean_k", 5));
+  std_mul_ = static_cast<double>(declare_parameter("std_mul", 0.01));
+  range_mul = static_cast<double>(declare_parameter("range_mul", 0.05));
 
   if (get_param(p, "mean_k", mean_k_)) {
     RCLCPP_DEBUG(get_logger(), "Setting new mean_k to: %d.", mean_k_);
   }
   if (get_param(p, "std_mul", std_mul_)) {
-    RCLCPP_DEBUG(
-      get_logger(), "Setting new std_mul to: %f.", std_mul_);
+    RCLCPP_DEBUG(get_logger(), "Setting new std_mul to: %f.", std_mul_);
   }
   if (get_param(p, "range_mul", range_mul)) {
     RCLCPP_DEBUG(get_logger(), "Setting new range_mul to: %f.", range_mul);
