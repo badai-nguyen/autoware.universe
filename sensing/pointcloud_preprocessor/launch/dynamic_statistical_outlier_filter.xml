@@ -5,17 +5,20 @@
   <arg name="input_frame" default="base_link"/>
   <arg name="output_frame" default="base_link"/>
 
-  <node pkg="pointcloud_preprocessor" exec="dynamic_statistical_outlier_filter_node" name="dynamic_statistical_outlier_filter_node">
-    <remap from="input" to="$(var input_topic_name)"/>
-    <remap from="output" to="$(var output_topic_name)"/>
-    <param name="input_frame" value="$(var input_frame)"/>
-    <param name="output_frame" value="$(var output_frame)"/>
-    <param name="mean_k" value="5"/>
-    <param name="std_mul" value="0.01"/>
-    <param name="range_mul" value="0.1"/>
-    <param name="x_max" value="60.0"/>
-    <param name="x_min" value="0.0"/>
-    <param name="y_max" value="25.0"/>
-    <param name="y_min" value="-25.0"/>
-  </node>
+<node_container pkg="rclcpp_components" exec="component_container" name="noise_pointcloud_filter" namespace="">
+    <composable_node pkg="pointcloud_preprocessor" plugin="pointcloud_preprocessor::ScalableStatisticalFilterComponent" name="dynamic_statistical_outlier_filter_node" namespace="">
+      <remap from="input" to="$(var input_topic_name)"/>
+      <remap from="output" to="$(var output_topic_name)"/>
+      <param name="input_frame" value="$(var input_frame)"/>
+      <param name="output_frame" value="$(var output_frame)"/>
+      <param name="mean_k" value="5"/>
+      <param name="std_mul" value="0.01"/>
+      <param name="range_mul" value="0.2"/>
+      <param name="x_max" value="0.0"/>
+      <param name="x_min" value="-60.0"/>
+      <param name="y_max" value="25.0"/>
+      <param name="y_min" value="-25.0"/>
+    </composable_node>
+    <composable_node pkg="glog_component" plugin="GlogComponent" name="glog_component" namespace=""/>
+  </node_container>
 </launch>
