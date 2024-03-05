@@ -45,15 +45,24 @@ ScalableStatisticalFilterComponent::ScalableStatisticalFilterComponent(
     y_max_ = static_cast<double>(declare_parameter("y_max", 25.0));
     y_min_ = static_cast<double>(declare_parameter("y_min", -25.0));
   }
-
+  if (tf_input_frame_.empty()) {
+    throw std::invalid_argument("Crop box requires non-empty input_frame");
+  }
   using std::placeholders::_1;
   set_param_res_ = this->add_on_set_parameters_callback(
     std::bind(&ScalableStatisticalFilterComponent::paramCallback, this, _1));
 }
-
 void ScalableStatisticalFilterComponent::filter(
-  const PointCloud2ConstPtr & input, [[maybe_unused]] const IndicesPtr & indices,
-  PointCloud2 & output)
+  const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output)
+{
+  (void)input;
+  (void)indices;
+  (void)output;
+}
+
+void ScalableStatisticalFilterComponent::faster_filter(
+  const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output,
+  const TransformInfo & transform_info)
 {
   std::scoped_lock lock(mutex_);
   if (indices) {
@@ -69,23 +78,28 @@ void ScalableStatisticalFilterComponent::filter(
   int z_offset = input->fields[pcl::getFieldIndex(*input, "z")].offset;
   output.data.resize(input->data.size());
   size_t output_size = 0;
-  for(size_t global_offset = 0; global_offset + input->point_step <= input->data.size();
-   global_offset += input->point_step){
+  for (size_t global_offset = 0; global_offset + input->point_step <= input->data.size();
+       global_offset += input->point_step) {
     Eigen::Vector4f point;
     std::memcpy(&point[0], &input->data[global_offset + x_offset], sizeof(float));
     std::memcpy(&point[1], &input->data[global_offset + y_offset], sizeof(float));
     std::memcpy(&point[2], &input->data[global_offset + z_offset], sizeof(float));
     point[3] = 1;
-
-    bool point_is_inside = point[0] > x_min_ && point[0] < x_max_ && 
-                           point[1] > y_min_ && point[1] < y_max_;
-    if(point_is_inside){
-      filter_cloud->push_back(PointT(point[0], point[1], point[2]));
+    if (transform_info.need_transform) {
+      point = transform_info.eigen_transform * point;
     }
-    else{
-      std::memcpy(&output.data[output_size + x_offset], &point[0], sizeof(float));
-      std::memcpy(&output.data[output_size + y_offset], &point[1], sizeof(float));
-      std::memcpy(&output.data[output_size + z_offset], &point[2], sizeof(float));
+    bool point_is_inside =
+      point[0] > x_min_ && point[0] < x_max_ && point[1] > y_min_ && point[1] < y_max_;
+    if (point_is_inside) {
+      filter_cloud->push_back(PointT(point[0], point[1], point[2]));
+    } else {
+      if (transform_info.need_transform) {
+        std::memcpy(&output.data[output_size + x_offset], &point[0], sizeof(float));
+        std::memcpy(&output.data[output_size + y_offset], &point[1], sizeof(float));
+        std::memcpy(&output.data[output_size + z_offset], &point[2], sizeof(float));
+      } else {
+        memcpy(&output.data[output_size], &input->data[global_offset], input->point_step);
+      }
       output_size += input->point_step;
     }
   }
@@ -101,7 +115,7 @@ void ScalableStatisticalFilterComponent::filter(
   for (pcl::PointCloud<PointT>::iterator it = filter_cloud->begin(); it != filter_cloud->end();
        ++it) {
     // k nearest search
-    kd_tree.nearestKSearch(*it, mean_k_, pointIdxNKNSearch  , pointNKNSquaredDistance);
+    kd_tree.nearestKSearch(*it, mean_k_, pointIdxNKNSearch, pointNKNSquaredDistance);
 
     // calculate mean distance
     double dist_sum = 0;
@@ -126,7 +140,6 @@ void ScalableStatisticalFilterComponent::filter(
   int i = 0;
   for (pcl::PointCloud<PointT>::iterator it = filter_cloud->begin(); it != filter_cloud->end();
        ++it) {
-    
     // calculate distance of every point from the sensor
     float range = sqrt(pow(it->x, 2) + pow(it->y, 2) + pow(it->z, 2));
     // dynamic threshold: as a point is farther away from the sensor,
@@ -139,14 +152,14 @@ void ScalableStatisticalFilterComponent::filter(
       std::memcpy(&output.data[output_size + y_offset], &it->y, sizeof(float));
       std::memcpy(&output.data[output_size + z_offset], &it->z, sizeof(float));
       output_size += input->point_step;
-    } 
+    }
     // update iterator
     i++;
   }
 
   output.data.resize(output_size);
 
-  output.header = input->header;
+  output.header.frame_id = tf_input_frame_;
 
   output.height = 1;
   output.fields = input->fields;

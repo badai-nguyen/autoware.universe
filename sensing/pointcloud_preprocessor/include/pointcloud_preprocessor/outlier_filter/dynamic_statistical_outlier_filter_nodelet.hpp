@@ -38,6 +38,9 @@ class ScalableStatisticalFilterComponent : public pointcloud_preprocessor::Filte
 protected:
   virtual void filter(
     const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output);
+  virtual void faster_filter(
+    const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output,
+    const TransformInfo & transform_info);
 
 private:
   int mean_k_;
