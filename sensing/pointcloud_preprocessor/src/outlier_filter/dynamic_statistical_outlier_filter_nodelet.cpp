@@ -20,7 +20,7 @@
 #include <vector>
 namespace pointcloud_preprocessor
 {
-using PointT = pcl::PointXYZ;
+using PointT = pcl::PointXYZI;
 ScalableStatisticalFilterComponent::ScalableStatisticalFilterComponent(
   const rclcpp::NodeOptions & options)
 : Filter("DynamicStatisticalOutlierFilter", options)
@@ -62,16 +62,35 @@ void ScalableStatisticalFilterComponent::filter(
   stop_watch_ptr_->toc("processing_time", true);
 
   pcl::PointCloud<PointT>::Ptr input_cloud(new pcl::PointCloud<PointT>);
-  pcl::fromROSMsg(*input, *input_cloud);
-  if (input_cloud->empty()) {
-    RCLCPP_WARN(get_logger(), "Received empty input point cloud");
-    return;
-  }
-  pcl::PointCloud<PointT>::Ptr filtered_cloud(new pcl::PointCloud<PointT>);
-  pcl::PointCloud<PointT>::Ptr negative_cloud(new pcl::PointCloud<PointT>);
+  pcl::PointCloud<PointT>::Ptr filter_cloud(new pcl::PointCloud<PointT>);
 
+  int x_offset = input->fields[pcl::getFieldIndex(*input, "x")].offset;
+  int y_offset = input->fields[pcl::getFieldIndex(*input, "y")].offset;
+  int z_offset = input->fields[pcl::getFieldIndex(*input, "z")].offset;
+  output.data.resize(input->data.size());
+  size_t output_size = 0;
+  for(size_t global_offset = 0; global_offset + input->point_step <= input->data.size();
+   global_offset += input->point_step){
+    Eigen::Vector4f point;
+    std::memcpy(&point[0], &input->data[global_offset + x_offset], sizeof(float));
+    std::memcpy(&point[1], &input->data[global_offset + y_offset], sizeof(float));
+    std::memcpy(&point[2], &input->data[global_offset + z_offset], sizeof(float));
+    point[3] = 1;
+
+    bool point_is_inside = point[0] > x_min_ && point[0] < x_max_ && 
+                           point[1] > y_min_ && point[1] < y_max_;
+    if(point_is_inside){
+      filter_cloud->push_back(PointT(point[0], point[1], point[2]));
+    }
+    else{
+      std::memcpy(&output.data[output_size + x_offset], &point[0], sizeof(float));
+      std::memcpy(&output.data[output_size + y_offset], &point[1], sizeof(float));
+      std::memcpy(&output.data[output_size + z_offset], &point[2], sizeof(float));
+      output_size += input->point_step;
+    }
+  }
   pcl::KdTreeFLANN<PointT> kd_tree;
-  kd_tree.setInputCloud(input_cloud);
+  kd_tree.setInputCloud(filter_cloud);
 
   std::vector<int> pointIdxNKNSearch(mean_k_);
   std::vector<float> pointNKNSquaredDistance(mean_k_);
@@ -79,10 +98,10 @@ void ScalableStatisticalFilterComponent::filter(
 
   // Go over all the points and check which doesn't have enough neighbors
   // perform filtering
-  for (pcl::PointCloud<PointT>::iterator it = input_cloud->begin(); it != input_cloud->end();
+  for (pcl::PointCloud<PointT>::iterator it = filter_cloud->begin(); it != filter_cloud->end();
        ++it) {
     // k nearest search
-    kd_tree.nearestKSearch(*it, mean_k_, pointIdxNKNSearch, pointNKNSquaredDistance);
+    kd_tree.nearestKSearch(*it, mean_k_, pointIdxNKNSearch  , pointNKNSquaredDistance);
 
     // calculate mean distance
     double dist_sum = 0;
@@ -105,13 +124,9 @@ void ScalableStatisticalFilterComponent::filter(
   double distance_threshold = (mean + std_mul_ * stddev);
   // iterate through vector
   int i = 0;
-  for (pcl::PointCloud<PointT>::iterator it = input_cloud->begin(); it != input_cloud->end();
+  for (pcl::PointCloud<PointT>::iterator it = filter_cloud->begin(); it != filter_cloud->end();
        ++it) {
-    if(it->x > x_max_ || it->x < x_min_ || it->y > y_max_ || it->y < y_min_){
-      i++;
-      filtered_cloud->push_back(*it);
-      continue;
-    }
+    
     // calculate distance of every point from the sensor
     float range = sqrt(pow(it->x, 2) + pow(it->y, 2) + pow(it->z, 2));
     // dynamic threshold: as a point is farther away from the sensor,
@@ -120,17 +135,26 @@ void ScalableStatisticalFilterComponent::filter(
 
     // a distance lower than the threshold is an inlier
     if (mean_distances[i] < dynamic_threshold) {
-      filtered_cloud->push_back(*it);
-    } else {
-      negative_cloud->push_back(*it);
-    }
+      std::memcpy(&output.data[output_size + x_offset], &it->x, sizeof(float));
+      std::memcpy(&output.data[output_size + y_offset], &it->y, sizeof(float));
+      std::memcpy(&output.data[output_size + z_offset], &it->z, sizeof(float));
+      output_size += input->point_step;
+    } 
     // update iterator
     i++;
   }
 
-  pcl::toROSMsg(*filtered_cloud, output);
+  output.data.resize(output_size);
+
   output.header = input->header;
 
+  output.height = 1;
+  output.fields = input->fields;
+  output.is_bigendian = input->is_bigendian;
+  output.point_step = input->point_step;
+  output.is_dense = input->is_dense;
+  output.width = static_cast<uint32_t>(output.data.size() / output.height / output.point_step);
+  output.row_step = static_cast<uint32_t>(output.data.size() / output.height);
   // add processing time for debug
   if (debug_publisher_) {
     const double cyclic_time_ms = stop_watch_ptr_->toc("cyclic_time", true);
