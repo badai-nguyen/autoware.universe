@@ -4,6 +4,7 @@
   <name>image_diagnostics</name>
   <version>0.1.0</version>
   <description>The image_diagnostics_package</description>
+  <maintainer email="shunsuke.miura@tier4.jp">Shunsuke Miura</maintainer>
   <maintainer email="dai.nguyen@tier4.jp">Dai Nguyen</maintainer>
   <license>Apache License 2.0</license>
 
