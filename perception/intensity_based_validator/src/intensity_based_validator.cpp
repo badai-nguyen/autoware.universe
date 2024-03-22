@@ -13,6 +13,7 @@
 // limitations under the License.
 
 #include "intensity_based_validator/intensity_based_validator.hpp"
+
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 namespace intensity_based_validator
 {
@@ -21,8 +22,9 @@ IntensityBasedValidator::IntensityBasedValidator(const rclcpp::NodeOptions & nod
   tf_buffer_(this->get_clock()),
   tf_listener_(tf_buffer_)
 {
-  intensity_threshold_ = declare_parameter<double>("intensity_threshold",2.0);  
-  existance_probability_threshold_ = declare_parameter<double>("existance_probability_threshold",0.1);
+  intensity_threshold_ = declare_parameter<double>("intensity_threshold", 2.0);
+  existance_probability_threshold_ =
+    declare_parameter<double>("existance_probability_threshold", 0.1);
 
   using std::placeholders::_1;
   // Set publisher/subscriber
@@ -42,31 +44,31 @@ void IntensityBasedValidator::objectCallback(
   output_object_msg.header = input_msg->header;
 
   for (const auto & feature_object : input_msg->feature_objects) {
-      auto const & object = feature_object.object;
-      // auto const & label = object.classification.front().label;
-      auto const & feature = feature_object.feature;
-      auto const & cluster = feature.cluster;
-      auto existance_probability = object.existence_probability;
+    auto const & object = feature_object.object;
+    // auto const & label = object.classification.front().label;
+    auto const & feature = feature_object.feature;
+    auto const & cluster = feature.cluster;
+    auto existance_probability = object.existence_probability;
 
-      if(!isValidatedCluster(cluster) || existance_probability < existance_probability_threshold_){
-        continue;
-      }
-      output_object_msg.feature_objects.emplace_back(feature_object);
+    if (!isValidatedCluster(cluster) || existance_probability < existance_probability_threshold_) {
+      continue;
+    }
+    output_object_msg.feature_objects.emplace_back(feature_object);
   }
   object_pub_->publish(output_object_msg);
 }
 bool IntensityBasedValidator::isValidatedCluster(const sensor_msgs::msg::PointCloud2 & cluster)
 {
   double mean_intensity = 0.0;
-  for(sensor_msgs::PointCloud2ConstIterator<float> iter(cluster, "intensity"); iter != iter.end(); ++iter)
-  {
+  for (sensor_msgs::PointCloud2ConstIterator<float> iter(cluster, "intensity"); iter != iter.end();
+       ++iter) {
     mean_intensity += *iter;
   }
   const size_t num_points = cluster.width * cluster.height;
   mean_intensity /= static_cast<double>(num_points);
   if (mean_intensity > intensity_threshold_) {
     return true;
-  } 
+  }
   return false;
 }
 
