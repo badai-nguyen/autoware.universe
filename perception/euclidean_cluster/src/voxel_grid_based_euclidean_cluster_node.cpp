@@ -65,8 +65,10 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
   }
 
   // clustering
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> clusters;
-  cluster_->cluster(raw_pointcloud_ptr, clusters);
+  std::vector<pcl::PointCloud<pcl::PointXYZI>> clusters;
+  if (!raw_pointcloud_ptr->empty()) {
+    cluster_->cluster(raw_pointcloud_ptr, clusters);
+  }
 
   // build output msg
   tier4_perception_msgs::msg::DetectedObjectsWithFeature output;
