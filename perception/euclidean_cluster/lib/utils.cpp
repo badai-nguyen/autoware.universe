@@ -75,9 +75,9 @@ void convertObjectMsg2SensorMsg(
   sensor_msgs::PointCloud2Modifier modifier(output);
   modifier.setPointCloud2Fields(
     6, "x", 1, sensor_msgs::msg::PointField::FLOAT32, "y", 1, sensor_msgs::msg::PointField::FLOAT32,
-    "z", 1, sensor_msgs::msg::PointField::FLOAT32, "intensity", 1, sensor_msgs::msg::PointField::FLOAT32, 
-    "rgb", 1, sensor_msgs::msg::PointField::FLOAT32, 
-    "cluster",1,sensor_msgs::msg::PointField::UINT32);
+    "z", 1, sensor_msgs::msg::PointField::FLOAT32, "intensity", 1,
+    sensor_msgs::msg::PointField::FLOAT32, "rgb", 1, sensor_msgs::msg::PointField::FLOAT32,
+    "cluster", 1, sensor_msgs::msg::PointField::UINT32);
   modifier.resize(pointcloud_size);
 
   sensor_msgs::PointCloud2Iterator<float> iter_out_x(output, "x");
@@ -96,9 +96,11 @@ void convertObjectMsg2SensorMsg(
     sensor_msgs::PointCloud2ConstIterator<float> iter_in_x(feature_object.feature.cluster, "x");
     sensor_msgs::PointCloud2ConstIterator<float> iter_in_y(feature_object.feature.cluster, "y");
     sensor_msgs::PointCloud2ConstIterator<float> iter_in_z(feature_object.feature.cluster, "z");
-    sensor_msgs::PointCloud2ConstIterator<float> iter_in_intensity(feature_object.feature.cluster, "intensity");
-    for (; iter_in_x != iter_in_x.end(); ++iter_in_x, ++iter_in_y, ++iter_in_z, ++iter_in_intensity, ++iter_out_x,
-                                         ++iter_out_y, ++iter_out_z, ++iter_out_intensity, ++iter_out_r, ++iter_out_g,
+    sensor_msgs::PointCloud2ConstIterator<float> iter_in_intensity(
+      feature_object.feature.cluster, "intensity");
+    for (; iter_in_x != iter_in_x.end(); ++iter_in_x, ++iter_in_y, ++iter_in_z, ++iter_in_intensity,
+                                         ++iter_out_x, ++iter_out_y, ++iter_out_z,
+                                         ++iter_out_intensity, ++iter_out_r, ++iter_out_g,
                                          ++iter_out_b, ++iter_out_cluster) {
       *iter_out_x = *iter_in_x;
       *iter_out_y = *iter_in_y;
