@@ -50,7 +50,7 @@ void IntensityBasedValidator::objectCallback(
     auto const & cluster = feature.cluster;
     auto existance_probability = object.existence_probability;
 
-    if (!isValidatedCluster(cluster) || existance_probability < existance_probability_threshold_) {
+    if (!isValidatedCluster(cluster) && existance_probability < existance_probability_threshold_) {
       continue;
     }
     output_object_msg.feature_objects.emplace_back(feature_object);
