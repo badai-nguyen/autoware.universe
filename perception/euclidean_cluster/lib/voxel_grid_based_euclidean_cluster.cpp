@@ -42,13 +42,13 @@ VoxelGridBasedEuclideanCluster::VoxelGridBasedEuclideanCluster(
 }
 
 bool VoxelGridBasedEuclideanCluster::cluster(
-  const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters)
+  const pcl::PointCloud<pcl::PointXYZI>::ConstPtr & pointcloud,
+  std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters)
 {
   // TODO(Saito) implement use_height is false version
 
   // create voxel
-  pcl::PointCloud<pcl::PointXYZ>::Ptr voxel_map_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr voxel_map_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   voxel_grid_.setLeafSize(voxel_leaf_size_, voxel_leaf_size_, 100000.0);
   voxel_grid_.setMinimumPointsNumberPerVoxel(min_points_number_per_voxel_);
   voxel_grid_.setInputCloud(pointcloud);
@@ -56,9 +56,9 @@ bool VoxelGridBasedEuclideanCluster::cluster(
   voxel_grid_.filter(*voxel_map_ptr);
 
   // voxel is pressed 2d
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pointcloud_2d_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr pointcloud_2d_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   for (const auto & point : voxel_map_ptr->points) {
-    pcl::PointXYZ point2d;
+    pcl::PointXYZI point2d;
     point2d.x = point.x;
     point2d.y = point.y;
     point2d.z = 0.0;
@@ -66,12 +66,12 @@ bool VoxelGridBasedEuclideanCluster::cluster(
   }
 
   // create tree
-  pcl::search::KdTree<pcl::PointXYZ>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZ>);
+  pcl::search::KdTree<pcl::PointXYZI>::Ptr tree(new pcl::search::KdTree<pcl::PointXYZI>);
   tree->setInputCloud(pointcloud_2d_ptr);
 
   // clustering
   std::vector<pcl::PointIndices> cluster_indices;
-  pcl::EuclideanClusterExtraction<pcl::PointXYZ> pcl_euclidean_cluster;
+  pcl::EuclideanClusterExtraction<pcl::PointXYZI> pcl_euclidean_cluster;
   pcl_euclidean_cluster.setClusterTolerance(tolerance_);
   pcl_euclidean_cluster.setMinClusterSize(1);
   pcl_euclidean_cluster.setMaxClusterSize(max_cluster_size_);
@@ -89,7 +89,7 @@ bool VoxelGridBasedEuclideanCluster::cluster(
   }
 
   // create vector of point cloud cluster. vector index is voxel grid index.
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> temporary_clusters;  // no check about cluster size
+  std::vector<pcl::PointCloud<pcl::PointXYZI>> temporary_clusters;  // no check about cluster size
   temporary_clusters.resize(cluster_indices.size());
   for (const auto & point : pointcloud->points) {
     const int index =

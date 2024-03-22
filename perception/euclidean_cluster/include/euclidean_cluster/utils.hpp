@@ -29,7 +29,7 @@ namespace euclidean_cluster
 geometry_msgs::msg::Point getCentroid(const sensor_msgs::msg::PointCloud2 & pointcloud);
 void convertPointCloudClusters2Msg(
   const std_msgs::msg::Header & header,
-  const std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters,
+  const std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters,
   tier4_perception_msgs::msg::DetectedObjectsWithFeature & msg);
 void convertObjectMsg2SensorMsg(
   const tier4_perception_msgs::msg::DetectedObjectsWithFeature & input,

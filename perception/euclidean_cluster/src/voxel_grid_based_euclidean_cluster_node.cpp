@@ -55,8 +55,14 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
   stop_watch_ptr_->toc("processing_time", true);
 
   // convert ros to pcl
-  pcl::PointCloud<pcl::PointXYZ>::Ptr raw_pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
-  pcl::fromROSMsg(*input_msg, *raw_pointcloud_ptr);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr raw_pointcloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
+  if (input_msg->data.empty()) {
+    // NOTE: prevent pcl log spam
+    RCLCPP_WARN_STREAM_THROTTLE(
+      this->get_logger(), *this->get_clock(), 1000, "Empty sensor points!");
+  } else {
+    pcl::fromROSMsg(*input_msg, *raw_pointcloud_ptr);
+  }
 
   // clustering
   std::vector<pcl::PointCloud<pcl::PointXYZ>> clusters;
@@ -72,6 +78,20 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
     return;
   }
   {
+    // pcl::PointCloud<pcl::PointXYZI> saving_cluster_pcd;
+
+    // saving_cluster_pcd.width = raw_pointcloud_ptr->size();
+    // saving_cluster_pcd.height = 1;
+    // saving_cluster_pcd.is_dense = false;
+    // saving_cluster_pcd.points.resize(raw_pointcloud_ptr->size());
+    // // saving_cluster_pcd.reserve(raw_pointcloud_ptr->size());
+    // for (auto icluster = clusters.begin(); icluster < clusters.end() ; ++icluster){
+    //   for (auto point = icluster->begin(); point < icluster->end(); ++point){
+    //     saving_cluster_pcd.push_back(*point);
+    //   }
+    // }
+    // pcl::io::savePCDFileASCII( "/media/autoware/MileeSSD/tasks/T4PB-24940_adverse_weather/test.pcd",saving_cluster_pcd);
+    // sensor_msgs::msg::PointCloud2 cluster_pub;
     sensor_msgs::msg::PointCloud2 debug;
     convertObjectMsg2SensorMsg(output, debug);
     debug_pub_->publish(debug);

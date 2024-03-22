@@ -38,8 +38,8 @@ public:
   void setMinClusterSize(int size) { min_cluster_size_ = size; }
   void setMaxClusterSize(int size) { max_cluster_size_ = size; }
   virtual bool cluster(
-    const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
-    std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters) = 0;
+    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr & pointcloud,
+    std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters) = 0;
 
 protected:
   bool use_height_ = true;
