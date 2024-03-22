@@ -60,27 +60,50 @@ VoxelBasedCompareMapFilterComponent::VoxelBasedCompareMapFilterComponent(
   tf_input_frame_ = *(voxel_grid_map_loader_->tf_map_input_frame_);
   RCLCPP_INFO(this->get_logger(), "tf_map_input_frame: %s", tf_input_frame_.c_str());
 }
-
-void VoxelBasedCompareMapFilterComponent::filter(
-  const PointCloud2ConstPtr & input, [[maybe_unused]] const IndicesPtr & indices,
-  PointCloud2 & output)
+void VoxelBasedCompareMapFilterComponent::faster_filter(
+  const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output,
+  const pointcloud_preprocessor::TransformInfo & transform_info)
 {
   std::scoped_lock lock(mutex_);
   stop_watch_ptr_->toc("processing_time", true);
-  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_input(new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::PointCloud<pcl::PointXYZI>::Ptr pcl_output(new pcl::PointCloud<pcl::PointXYZI>);
-  pcl::fromROSMsg(*input, *pcl_input);
-  pcl_output->points.reserve(pcl_input->points.size());
-  for (size_t i = 0; i < pcl_input->points.size(); ++i) {
-    const pcl::PointXYZI point = pcl_input->points.at(i);
+  if (indices) {
+    RCLCPP_ERROR(this->get_logger(), "Indices are not supported in this filter");
+  }
+
+  int x_offset = input->fields[pcl::getFieldIndex(*input, "x")].offset;
+  int y_offset = input->fields[pcl::getFieldIndex(*input, "y")].offset;
+  int z_offset = input->fields[pcl::getFieldIndex(*input, "z")].offset;
+  output.data.resize(input->data.size());
+  size_t output_size = 0;
+  for (size_t global_offset = 0; global_offset + input->point_step <= input->data.size();
+       global_offset += input->point_step) {
+    Eigen::Vector4f point;
+    std::memcpy(&point[0], &input->data[global_offset + x_offset], sizeof(float));
+    std::memcpy(&point[1], &input->data[global_offset + y_offset], sizeof(float));
+    std::memcpy(&point[2], &input->data[global_offset + z_offset], sizeof(float));
+    point[3] = 1;
     if (voxel_grid_map_loader_->is_close_to_map(
-          pcl::PointXYZ(point.x, point.y, point.z), distance_threshold_)) {
+          pcl::PointXYZ(point[0], point[1], point[2]), distance_threshold_)) {
       continue;
     }
-    pcl_output->points.push_back(point);
+    memcpy(&output.data[output_size], &input->data[global_offset], input->point_step);
+    if (transform_info.need_transform) {
+      point = transform_info.eigen_transform * point;
+      std::memcpy(&output.data[output_size + x_offset], &point[0], sizeof(float));
+      std::memcpy(&output.data[output_size + y_offset], &point[1], sizeof(float));
+      std::memcpy(&output.data[output_size + z_offset], &point[2], sizeof(float));
+    }
+    output_size += input->point_step;
   }
-  pcl::toROSMsg(*pcl_output, output);
-  output.header = input->header;
+  output.data.resize(output_size);
+  output.header.frame_id = tf_input_frame_;
+  output.height = 1;
+  output.fields = input->fields;
+  output.is_bigendian = input->is_bigendian;
+  output.point_step = input->point_step;
+  output.is_dense = input->is_dense;
+  output.width = static_cast<uint32_t>(output.data.size() / output.height / output.point_step);
+  output.row_step = static_cast<uint32_t>(output.data.size() / output.height);
 
   // add processing time for debug
   if (debug_publisher_) {
@@ -91,6 +114,14 @@ void VoxelBasedCompareMapFilterComponent::filter(
     debug_publisher_->publish<tier4_debug_msgs::msg::Float64Stamped>(
       "debug/processing_time_ms", processing_time_ms);
   }
+}
+void VoxelBasedCompareMapFilterComponent::filter(
+  const PointCloud2ConstPtr & input, [[maybe_unused]] const IndicesPtr & indices,
+  PointCloud2 & output)
+{
+  (void)input;
+  (void)indices;
+  (void)output;
 }
 
 }  // namespace compare_map_segmentation

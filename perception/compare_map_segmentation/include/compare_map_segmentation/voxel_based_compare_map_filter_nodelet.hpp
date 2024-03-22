@@ -17,6 +17,7 @@
 
 #include "compare_map_segmentation/voxel_grid_map_loader.hpp"
 #include "pointcloud_preprocessor/filter.hpp"
+#include "pointcloud_preprocessor/transform_info.hpp"
 
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/search/pcl_search.h>
@@ -31,6 +32,9 @@ class VoxelBasedCompareMapFilterComponent : public pointcloud_preprocessor::Filt
 protected:
   virtual void filter(
     const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output);
+  virtual void faster_filter(
+    const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output,
+    const pointcloud_preprocessor::TransformInfo & transform_info);
 
 private:
   // pcl::SegmentDifferences<pcl::PointXYZ> impl_;
