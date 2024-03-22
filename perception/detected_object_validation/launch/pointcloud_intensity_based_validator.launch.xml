@@ -11,5 +11,4 @@
     <param name="input_obstacle_pointcloud" value="false"/>
     <param from="$(var pointcloud_intensity_based_validator_param_path)"/>
   </node>
-
 </launch>
