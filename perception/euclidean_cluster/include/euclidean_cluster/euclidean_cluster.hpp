@@ -30,8 +30,8 @@ public:
   EuclideanCluster(bool use_height, int min_cluster_size, int max_cluster_size);
   EuclideanCluster(bool use_height, int min_cluster_size, int max_cluster_size, float tolerance);
   bool cluster(
-    const pcl::PointCloud<pcl::PointXYZ>::ConstPtr & pointcloud,
-    std::vector<pcl::PointCloud<pcl::PointXYZ>> & clusters) override;
+    const pcl::PointCloud<pcl::PointXYZI>::ConstPtr & pointcloud,
+    std::vector<pcl::PointCloud<pcl::PointXYZI>> & clusters) override;
   void setTolerance(float tolerance) { tolerance_ = tolerance; }
 
 private:
