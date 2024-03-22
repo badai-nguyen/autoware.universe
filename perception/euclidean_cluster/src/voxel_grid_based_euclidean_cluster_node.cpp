@@ -65,7 +65,7 @@ void VoxelGridBasedEuclideanClusterNode::onPointCloud(
   }
 
   // clustering
-  std::vector<pcl::PointCloud<pcl::PointXYZ>> clusters;
+  std::vector<pcl::PointCloud<pcl::PointXYZI>> clusters;
   if (!raw_pointcloud_ptr->empty()) {
     cluster_->cluster(raw_pointcloud_ptr, clusters);
   }
