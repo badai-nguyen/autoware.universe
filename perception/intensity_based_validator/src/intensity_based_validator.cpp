@@ -32,12 +32,22 @@ IntensityBasedValidator::IntensityBasedValidator(const rclcpp::NodeOptions & nod
     "input/objects", rclcpp::QoS{1}, std::bind(&IntensityBasedValidator::objectCallback, this, _1));
   object_pub_ = this->create_publisher<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
     "output/objects", rclcpp::QoS{1});
+  // initialize debug tool
+  {
+    using tier4_autoware_utils::DebugPublisher;
+    using tier4_autoware_utils::StopWatch;
+    stop_watch_ptr_ = std::make_unique<StopWatch<std::chrono::milliseconds>>();
+    debug_publisher_ptr_ = std::make_unique<DebugPublisher>(this, "intensity_based_validator_node");
+    stop_watch_ptr_->tic("cyclic_time");
+    stop_watch_ptr_->tic("processing_time");
+  }
 }
 
 void IntensityBasedValidator::objectCallback(
   const tier4_perception_msgs::msg::DetectedObjectsWithFeature::ConstSharedPtr input_msg)
 {
   // Guard
+  stop_watch_ptr_->toc("processing_time", true);
   if (object_pub_->get_subscription_count() < 1) return;
 
   tier4_perception_msgs::msg::DetectedObjectsWithFeature output_object_msg;
@@ -56,6 +66,14 @@ void IntensityBasedValidator::objectCallback(
     output_object_msg.feature_objects.emplace_back(feature_object);
   }
   object_pub_->publish(output_object_msg);
+  if (debug_publisher_ptr_ && stop_watch_ptr_) {
+    const double cyclic_time_ms = stop_watch_ptr_->toc("cyclic_time", true);
+    const double processing_time_ms = stop_watch_ptr_->toc("processing_time", true);
+    debug_publisher_ptr_->publish<tier4_debug_msgs::msg::Float64Stamped>(
+      "debug/cyclic_time_ms", cyclic_time_ms);
+    debug_publisher_ptr_->publish<tier4_debug_msgs::msg::Float64Stamped>(
+      "debug/processing_time_ms", processing_time_ms);
+  }
 }
 bool IntensityBasedValidator::isValidatedCluster(const sensor_msgs::msg::PointCloud2 & cluster)
 {

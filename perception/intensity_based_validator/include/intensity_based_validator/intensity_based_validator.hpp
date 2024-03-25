@@ -16,6 +16,8 @@
 #define INTENSITY_BASED_VALIDATOR__INTENSITY_BASED_VALIDATOR_HPP_
 
 #include <rclcpp/rclcpp.hpp>
+#include <tier4_autoware_utils/ros/debug_publisher.hpp>
+#include <tier4_autoware_utils/system/stop_watch.hpp>
 
 #include <tier4_perception_msgs/msg/detected_objects_with_feature.hpp>
 
@@ -45,6 +47,10 @@ private:
   tf2_ros::TransformListener tf_listener_;
   double intensity_threshold_;
   double existance_probability_threshold_;
+  // debugger
+  std::unique_ptr<tier4_autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_{
+    nullptr};
+  std::unique_ptr<tier4_autoware_utils::DebugPublisher> debug_publisher_ptr_{nullptr};
 };
 
 }  // namespace intensity_based_validator
