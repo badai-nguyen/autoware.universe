@@ -60,6 +60,30 @@ VoxelBasedCompareMapFilterComponent::VoxelBasedCompareMapFilterComponent(
   tf_input_frame_ = *(voxel_grid_map_loader_->tf_map_input_frame_);
   RCLCPP_INFO(this->get_logger(), "tf_map_input_frame: %s", tf_input_frame_.c_str());
 }
+void VoxelBasedCompareMapFilterComponent::set_field_offsets(const PointCloud2ConstPtr & input)
+{
+  x_offset_ = input->fields[pcl::getFieldIndex(*input, "x")].offset;
+  y_offset_ = input->fields[pcl::getFieldIndex(*input, "y")].offset;
+  z_offset_ = input->fields[pcl::getFieldIndex(*input, "z")].offset;
+  int intensity_index = pcl::getFieldIndex(*input, "intensity");
+  if (intensity_index != -1) {
+    intensity_offset_ = input->fields[intensity_index].offset;
+  } else {
+    intensity_offset_ = z_offset_ + sizeof(float);
+  }
+  RCLCPP_INFO(
+    this->get_logger(), "x_offset: %d, y_offset: %d, z_offset: %d, intensity_offset: %d", x_offset_,
+    y_offset_, z_offset_, intensity_offset_);
+  offset_initialized_ = true;
+}
+
+void VoxelBasedCompareMapFilterComponent::get_point_from_global_offset(
+  const PointCloud2ConstPtr & input, const size_t global_offset, pcl::PointXYZ & point)
+{
+  point.x = *reinterpret_cast<const float *>(&input->data[global_offset + x_offset_]);
+  point.y = *reinterpret_cast<const float *>(&input->data[global_offset + y_offset_]);
+  point.z = *reinterpret_cast<const float *>(&input->data[global_offset + z_offset_]);
+}
 void VoxelBasedCompareMapFilterComponent::faster_filter(
   const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output,
   const pointcloud_preprocessor::TransformInfo & transform_info)
@@ -69,34 +93,35 @@ void VoxelBasedCompareMapFilterComponent::faster_filter(
   if (indices) {
     RCLCPP_ERROR(this->get_logger(), "Indices are not supported in this filter");
   }
-
-  int x_offset = input->fields[pcl::getFieldIndex(*input, "x")].offset;
-  int y_offset = input->fields[pcl::getFieldIndex(*input, "y")].offset;
-  int z_offset = input->fields[pcl::getFieldIndex(*input, "z")].offset;
+  if (!offset_initialized_) {
+    set_field_offsets(input);
+  }
   output.data.resize(input->data.size());
   size_t output_size = 0;
   for (size_t global_offset = 0; global_offset + input->point_step <= input->data.size();
        global_offset += input->point_step) {
     Eigen::Vector4f point;
-    std::memcpy(&point[0], &input->data[global_offset + x_offset], sizeof(float));
-    std::memcpy(&point[1], &input->data[global_offset + y_offset], sizeof(float));
-    std::memcpy(&point[2], &input->data[global_offset + z_offset], sizeof(float));
+    std::memcpy(&point[0], &input->data[global_offset + x_offset_], sizeof(float));
+    std::memcpy(&point[1], &input->data[global_offset + y_offset_], sizeof(float));
+    std::memcpy(&point[2], &input->data[global_offset + z_offset_], sizeof(float));
     point[3] = 1;
+    if (transform_info.need_transform) {
+      point = transform_info.eigen_transform * point;
+    }
     if (voxel_grid_map_loader_->is_close_to_map(
           pcl::PointXYZ(point[0], point[1], point[2]), distance_threshold_)) {
       continue;
     }
     memcpy(&output.data[output_size], &input->data[global_offset], input->point_step);
     if (transform_info.need_transform) {
-      point = transform_info.eigen_transform * point;
-      std::memcpy(&output.data[output_size + x_offset], &point[0], sizeof(float));
-      std::memcpy(&output.data[output_size + y_offset], &point[1], sizeof(float));
-      std::memcpy(&output.data[output_size + z_offset], &point[2], sizeof(float));
+      std::memcpy(&output.data[output_size + x_offset_], &point[0], sizeof(float));
+      std::memcpy(&output.data[output_size + y_offset_], &point[1], sizeof(float));
+      std::memcpy(&output.data[output_size + z_offset_], &point[2], sizeof(float));
     }
     output_size += input->point_step;
   }
   output.data.resize(output_size);
-  output.header.frame_id = tf_input_frame_;
+  output.header.frame_id = tf_output_frame_;
   output.height = 1;
   output.fields = input->fields;
   output.is_bigendian = input->is_bigendian;

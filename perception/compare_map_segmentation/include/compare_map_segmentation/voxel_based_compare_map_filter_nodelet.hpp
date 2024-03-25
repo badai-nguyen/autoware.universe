@@ -36,6 +36,10 @@ protected:
     const PointCloud2ConstPtr & input, const IndicesPtr & indices, PointCloud2 & output,
     const pointcloud_preprocessor::TransformInfo & transform_info);
 
+  void set_field_offsets(const PointCloud2ConstPtr & input);
+  void get_point_from_global_offset(
+    const PointCloud2ConstPtr & input, const size_t global_offset, pcl::PointXYZ & point);
+
 private:
   // pcl::SegmentDifferences<pcl::PointXYZ> impl_;
   std::unique_ptr<VoxelGridMapLoader> voxel_grid_map_loader_;
@@ -44,6 +48,11 @@ private:
   bool set_map_in_voxel_grid_;
 
   bool dynamic_map_load_enable_;
+  bool offset_initialized_ = false;
+  int x_offset_;
+  int y_offset_;
+  int z_offset_;
+  int intensity_offset_;
 
 public:
   PCL_MAKE_ALIGNED_OPERATOR_NEW
