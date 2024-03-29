@@ -22,9 +22,12 @@ IntensityBasedValidator::IntensityBasedValidator(const rclcpp::NodeOptions & nod
   tf_buffer_(this->get_clock()),
   tf_listener_(tf_buffer_)
 {
-  intensity_threshold_ = declare_parameter<double>("intensity_threshold", 2.0);
-  existance_probability_threshold_ =
-    declare_parameter<double>("existance_probability_threshold", 0.1);
+  intensity_threshold_ = declare_parameter<double>("intensity_threshold");
+  existance_probability_threshold_ = declare_parameter<double>("existance_probability_threshold");
+  max_x_ = declare_parameter<double>("max_x");
+  min_x_ = declare_parameter<double>("min_x");
+  max_y_ = declare_parameter<double>("max_y");
+  min_y_ = declare_parameter<double>("min_y");
 
   using std::placeholders::_1;
   // Set publisher/subscriber
@@ -59,8 +62,12 @@ void IntensityBasedValidator::objectCallback(
     auto const & feature = feature_object.feature;
     auto const & cluster = feature.cluster;
     auto existance_probability = object.existence_probability;
-
-    if (!isValidatedCluster(cluster) && existance_probability < existance_probability_threshold_) {
+    auto position = object.kinematics.pose_with_covariance.pose.position;
+    bool is_inside_validation_range =
+      (min_x_ < position.x && position.x < max_x_) && (min_y_ < position.y && position.y < max_y_);
+    if (
+      is_inside_validation_range && !isValidatedCluster(cluster) &&
+      existance_probability < existance_probability_threshold_) {
       continue;
     }
     output_object_msg.feature_objects.emplace_back(feature_object);

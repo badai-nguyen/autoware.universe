@@ -47,6 +47,11 @@ private:
   tf2_ros::TransformListener tf_listener_;
   double intensity_threshold_;
   double existance_probability_threshold_;
+  double max_x_;
+  double min_x_;
+  double max_y_;
+  double min_y_;
+
   // debugger
   std::unique_ptr<tier4_autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_{
     nullptr};
