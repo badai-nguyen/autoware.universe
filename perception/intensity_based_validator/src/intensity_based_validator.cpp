@@ -14,6 +14,8 @@
 
 #include "intensity_based_validator/intensity_based_validator.hpp"
 
+#include <pcl_ros/transforms.hpp>
+
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 namespace intensity_based_validator
 {
@@ -55,6 +57,29 @@ void IntensityBasedValidator::objectCallback(
 
   tier4_perception_msgs::msg::DetectedObjectsWithFeature output_object_msg;
   output_object_msg.header = input_msg->header;
+  geometry_msgs::msg::TransformStamped transform_stamp;
+  try {
+    transform_stamp = tf_buffer_.lookupTransform(
+      base_link_frame_id_, input_msg->header.frame_id, tf2_ros::fromMsg(input_msg->header.stamp));
+    // Eigen::Matrix4f affine_matrix =
+    // tf2::transformToEigen(transform_stamp.transform).matrix().cast<float>();
+  } catch (tf2::TransformException & ex) {
+    RCLCPP_ERROR(get_logger(), "Failed to lookup transform: %s", ex.what());
+    return;
+  }
+  Eigen::Matrix4f eigen_transform;
+  pcl_ros::transformAsMatrix(transform_stamp, eigen_transform);
+  Eigen::Vector4f min_boundary_base_frame(min_x_, min_y_, 0.0, 1.0);
+  Eigen::Vector4f max_boundary_base_frame(max_x_, max_y_, 0.0, 1.0);
+  Eigen::Vector4f min_boundary_transformed_ = eigen_transform * min_boundary_base_frame;
+  Eigen::Vector4f max_boundary_transformed_ = eigen_transform * max_boundary_base_frame;
+  min_x_transformed_ = min_boundary_transformed_(0);
+  min_y_transformed_ = min_boundary_transformed_(1);
+  max_x_transformed_ = max_boundary_transformed_(0);
+  max_y_transformed_ = max_boundary_transformed_(1);
+  RCLCPP_INFO(
+    get_logger(), "Transformed validation range: min_x: %f, min_y: %f, max_x: %f, max_y: %f",
+    min_x_transformed_, min_y_transformed_, max_x_transformed_, max_y_transformed_);
 
   for (const auto & feature_object : input_msg->feature_objects) {
     auto const & object = feature_object.object;
@@ -62,12 +87,11 @@ void IntensityBasedValidator::objectCallback(
     auto const & feature = feature_object.feature;
     auto const & cluster = feature.cluster;
     auto existance_probability = object.existence_probability;
-    auto position = object.kinematics.pose_with_covariance.pose.position;
-    bool is_inside_validation_range =
-      (min_x_ < position.x && position.x < max_x_) && (min_y_ < position.y && position.y < max_y_);
-    if (
-      is_inside_validation_range && !isValidatedCluster(cluster) &&
-      existance_probability < existance_probability_threshold_) {
+    // auto position = object.kinematics.pose_with_covariance.pose.position;
+    // bool is_inside_validation_range =
+    // (min_x_transformed_ < position.x && position.x < max_x_transformed_) && (min_y_transformed_ <
+    // position.y && position.y < max_y_transformed_);
+    if (!isValidatedCluster(cluster) && existance_probability < existance_probability_threshold_) {
       continue;
     }
     output_object_msg.feature_objects.emplace_back(feature_object);
@@ -85,6 +109,10 @@ void IntensityBasedValidator::objectCallback(
 bool IntensityBasedValidator::isValidatedCluster(const sensor_msgs::msg::PointCloud2 & cluster)
 {
   double mean_intensity = 0.0;
+  if (cluster.point_step < 16) {
+    RCLCPP_WARN(get_logger(), "Invalid point cloud data. point_step is less than 16.");
+    return false;
+  }
   for (sensor_msgs::PointCloud2ConstIterator<float> iter(cluster, "intensity"); iter != iter.end();
        ++iter) {
     mean_intensity += *iter;
