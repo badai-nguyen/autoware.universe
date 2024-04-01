@@ -29,11 +29,11 @@
 #include <vector>
 
 bool ConvexHullShapeModel::estimate(
-  const pcl::PointCloud<pcl::PointXYZ> & cluster,
-  autoware_auto_perception_msgs::msg::Shape & shape_output, geometry_msgs::msg::Pose & pose_output)
+  const pcl::PointCloud<PointT> & cluster, autoware_auto_perception_msgs::msg::Shape & shape_output,
+  geometry_msgs::msg::Pose & pose_output)
 {
   // calc centroid point for convex hull height(z)
-  pcl::PointXYZ centroid;
+  PointT centroid;
   centroid.x = 0;
   centroid.y = 0;
   centroid.z = 0;
@@ -62,7 +62,7 @@ bool ConvexHullShapeModel::estimate(
   }
   cv::convexHull(v_pointcloud, v_polygon_points);
 
-  pcl::PointXYZ polygon_centroid;
+  PointT polygon_centroid;
   polygon_centroid.x = 0;
   polygon_centroid.y = 0;
   for (size_t i = 0; i < v_polygon_points.size(); ++i) {

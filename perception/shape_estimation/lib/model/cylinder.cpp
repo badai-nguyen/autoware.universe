@@ -27,8 +27,8 @@
 #include <algorithm>
 
 bool CylinderShapeModel::estimate(
-  const pcl::PointCloud<pcl::PointXYZ> & cluster,
-  autoware_auto_perception_msgs::msg::Shape & shape_output, geometry_msgs::msg::Pose & pose_output)
+  const pcl::PointCloud<PointT> & cluster, autoware_auto_perception_msgs::msg::Shape & shape_output,
+  geometry_msgs::msg::Pose & pose_output)
 {
   // calc min and max z for cylinder length
   float min_z = cluster.empty() ? 0.0 : cluster.at(0).z;

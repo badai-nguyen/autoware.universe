@@ -29,12 +29,13 @@
 class ShapeEstimationModelInterface
 {
 public:
+  using PointT = pcl::PointXYZI;
   ShapeEstimationModelInterface() {}
 
   virtual ~ShapeEstimationModelInterface() {}
 
   virtual bool estimate(
-    const pcl::PointCloud<pcl::PointXYZ> & cluster,
+    const pcl::PointCloud<PointT> & cluster,
     autoware_auto_perception_msgs::msg::Shape & shape_output,
     geometry_msgs::msg::Pose & pose_output) = 0;
 };
