@@ -24,14 +24,14 @@ class BoundingBoxShapeModel : public ShapeEstimationModelInterface
 {
 private:
   bool fitLShape(
-    const pcl::PointCloud<pcl::PointXYZ> & cluster, const float min_angle, const float max_angle,
+    const pcl::PointCloud<PointT> & cluster, const float min_angle, const float max_angle,
     autoware_auto_perception_msgs::msg::Shape & shape_output,
     geometry_msgs::msg::Pose & pose_output);
   float calcClosenessCriterion(const std::vector<float> & C_1, const std::vector<float> & C_2);
   float optimize(
-    const pcl::PointCloud<pcl::PointXYZ> & cluster, const float min_angle, const float max_angle);
+    const pcl::PointCloud<PointT> & cluster, const float min_angle, const float max_angle);
   float boostOptimize(
-    const pcl::PointCloud<pcl::PointXYZ> & cluster, const float min_angle, const float max_angle);
+    const pcl::PointCloud<PointT> & cluster, const float min_angle, const float max_angle);
 
 public:
   BoundingBoxShapeModel();
@@ -43,7 +43,7 @@ public:
   ~BoundingBoxShapeModel() {}
 
   bool estimate(
-    const pcl::PointCloud<pcl::PointXYZ> & cluster,
+    const pcl::PointCloud<PointT> & cluster,
     autoware_auto_perception_msgs::msg::Shape & shape_output,
     geometry_msgs::msg::Pose & pose_output) override;
 };

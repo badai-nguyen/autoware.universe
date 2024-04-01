@@ -72,7 +72,7 @@ void ShapeEstimationNode::callback(const DetectedObjectsWithFeature::ConstShared
                             Label::TRAILER == label;
 
     // convert ros to pcl
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cluster(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<PointT>::Ptr cluster(new pcl::PointCloud<PointT>);
     pcl::fromROSMsg(feature.cluster, *cluster);
 
     // check cluster data

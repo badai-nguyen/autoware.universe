@@ -56,8 +56,8 @@ BoundingBoxShapeModel::BoundingBoxShapeModel(
 }
 
 bool BoundingBoxShapeModel::estimate(
-  const pcl::PointCloud<pcl::PointXYZ> & cluster,
-  autoware_auto_perception_msgs::msg::Shape & shape_output, geometry_msgs::msg::Pose & pose_output)
+  const pcl::PointCloud<PointT> & cluster, autoware_auto_perception_msgs::msg::Shape & shape_output,
+  geometry_msgs::msg::Pose & pose_output)
 {
   float min_angle, max_angle;
   if (ref_yaw_info_) {
@@ -71,7 +71,7 @@ bool BoundingBoxShapeModel::estimate(
 }
 
 bool BoundingBoxShapeModel::fitLShape(
-  const pcl::PointCloud<pcl::PointXYZ> & cluster, const float min_angle, const float max_angle,
+  const pcl::PointCloud<PointT> & cluster, const float min_angle, const float max_angle,
   autoware_auto_perception_msgs::msg::Shape & shape_output, geometry_msgs::msg::Pose & pose_output)
 {
   // calc min and max z for height
@@ -196,7 +196,7 @@ float BoundingBoxShapeModel::calcClosenessCriterion(
 }
 
 float BoundingBoxShapeModel::optimize(
-  const pcl::PointCloud<pcl::PointXYZ> & cluster, const float min_angle, const float max_angle)
+  const pcl::PointCloud<PointT> & cluster, const float min_angle, const float max_angle)
 {
   std::vector<std::pair<float /*theta*/, float /*q*/>> Q;
   constexpr float angle_resolution = M_PI / 180.0;
@@ -228,7 +228,7 @@ float BoundingBoxShapeModel::optimize(
 }
 
 float BoundingBoxShapeModel::boostOptimize(
-  const pcl::PointCloud<pcl::PointXYZ> & cluster, const float min_angle, const float max_angle)
+  const pcl::PointCloud<PointT> & cluster, const float min_angle, const float max_angle)
 {
   auto closeness_func = [&](float theta) {
     Eigen::Vector2f e_1;

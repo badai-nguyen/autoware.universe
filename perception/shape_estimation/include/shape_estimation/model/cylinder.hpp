@@ -28,7 +28,7 @@ public:
    * if cluster size is 1, it can be calculated using the lower limit of the size of the object
    */
   bool estimate(
-    const pcl::PointCloud<pcl::PointXYZ> & cluster,
+    const pcl::PointCloud<PointT> & cluster,
     autoware_auto_perception_msgs::msg::Shape & shape_output,
     geometry_msgs::msg::Pose & pose_output) override;
 };

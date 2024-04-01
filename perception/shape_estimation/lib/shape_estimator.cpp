@@ -31,7 +31,7 @@ ShapeEstimator::ShapeEstimator(bool use_corrector, bool use_filter, bool use_boo
 }
 
 bool ShapeEstimator::estimateShapeAndPose(
-  const uint8_t label, const pcl::PointCloud<pcl::PointXYZ> & cluster,
+  const uint8_t label, const pcl::PointCloud<PointT> & cluster,
   const boost::optional<ReferenceYawInfo> & ref_yaw_info,
   const boost::optional<ReferenceShapeSizeInfo> & ref_shape_size_info,
   autoware_auto_perception_msgs::msg::Shape & shape_output, geometry_msgs::msg::Pose & pose_output)
@@ -64,7 +64,7 @@ bool ShapeEstimator::estimateShapeAndPose(
 }
 
 bool ShapeEstimator::estimateOriginalShapeAndPose(
-  const uint8_t label, const pcl::PointCloud<pcl::PointXYZ> & cluster,
+  const uint8_t label, const pcl::PointCloud<PointT> & cluster,
   const boost::optional<ReferenceYawInfo> & ref_yaw_info,
   autoware_auto_perception_msgs::msg::Shape & shape_output, geometry_msgs::msg::Pose & pose_output)
 {
