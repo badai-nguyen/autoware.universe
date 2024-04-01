@@ -69,7 +69,7 @@ private:
     PointLabel point_state{PointLabel::INIT};
 
     size_t orig_index;  // index of this point in the source pointcloud
-    pcl::PointXYZI * orig_point;
+    pcl::PointXYZ * orig_point;
   };
   using PointCloudRefVector = std::vector<PointRef>;
 
@@ -192,16 +192,16 @@ private:
    *     each element will contain the points ordered
    */
   void convertPointcloud(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud,
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud,
     std::vector<PointCloudRefVector> & out_radial_ordered_points_manager);
   void convertPointcloudGridScan(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud,
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud,
     std::vector<PointCloudRefVector> & out_radial_ordered_points_manager);
   /*!
    * Output ground center of front wheels as the virtual ground point
    * @param[out] point Virtual ground origin point
    */
-  void calcVirtualGroundOrigin(pcl::PointXYZI & point);
+  void calcVirtualGroundOrigin(pcl::PointXYZ & point);
 
   /*!
    * Classifies Points in the PointCloud as Ground and Not Ground
@@ -240,8 +240,8 @@ private:
    * @param out_object_cloud_ptr Resulting PointCloud with the indices kept
    */
   void extractObjectPoints(
-    const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, const pcl::PointIndices & in_indices,
-    pcl::PointCloud<pcl::PointXYZI>::Ptr out_object_cloud_ptr);
+    const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, const pcl::PointIndices & in_indices,
+    pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr);
 
   /** \brief Parameter service callback result : needed to be hold */
   OnSetParametersCallbackHandle::SharedPtr set_param_res_;
