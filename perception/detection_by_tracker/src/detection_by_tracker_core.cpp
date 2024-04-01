@@ -29,8 +29,9 @@
 using Label = autoware_auto_perception_msgs::msg::ObjectClassification;
 namespace
 {
+using PointT = pcl::PointXYZI;
 void setClusterInObjectWithFeature(
-  const std_msgs::msg::Header & header, const pcl::PointCloud<pcl::PointXYZ> & cluster,
+  const std_msgs::msg::Header & header, const pcl::PointCloud<PointT> & cluster,
   tier4_perception_msgs::msg::DetectedObjectWithFeature & feature_object)
 {
   sensor_msgs::msg::PointCloud2 ros_pointcloud;
@@ -331,7 +332,7 @@ float DetectionByTracker::optimizeUnderSegmentedObject(
     false, 4, 10000, initial_cluster_range, initial_voxel_size, 0);
 
   // convert to pcl
-  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointCloud<PointT>::Ptr pcl_cluster(new pcl::PointCloud<PointT>);
   pcl::fromROSMsg(under_segmented_cluster, *pcl_cluster);
 
   // iterate to find best fit divided object
@@ -340,7 +341,7 @@ float DetectionByTracker::optimizeUnderSegmentedObject(
   for (int iter_count = 0; iter_count < iter_max_count;
        ++iter_count, cluster_range *= iter_rate, voxel_size *= iter_rate) {
     // divide under segmented cluster
-    std::vector<pcl::PointCloud<pcl::PointXYZ>> divided_clusters;
+    std::vector<pcl::PointCloud<PointT>> divided_clusters;
     cluster.setTolerance(cluster_range);
     cluster.setVoxelLeafSize(voxel_size);
     cluster.cluster(pcl_cluster, divided_clusters);
@@ -409,7 +410,7 @@ void DetectionByTracker::mergeOverSegmentedObjects(
     autoware_auto_perception_msgs::msg::DetectedObject extended_tracked_object = tracked_object;
     extended_tracked_object.shape = extendShape(tracked_object.shape, /*scale*/ 1.1);
 
-    pcl::PointCloud<pcl::PointXYZ> pcl_merged_cluster;
+    pcl::PointCloud<PointT> pcl_merged_cluster;
     for (const auto & initial_object : in_cluster_objects.feature_objects) {
       const float distance = tier4_autoware_utils::calcDistance2d(
         tracked_object.kinematics.pose_with_covariance.pose,
@@ -425,7 +426,7 @@ void DetectionByTracker::mergeOverSegmentedObjects(
       if (precision < precision_threshold) {
         continue;
       }
-      pcl::PointCloud<pcl::PointXYZ> pcl_cluster;
+      pcl::PointCloud<PointT> pcl_cluster;
       pcl::fromROSMsg(initial_object.feature.cluster, pcl_cluster);
       pcl_merged_cluster += pcl_cluster;
     }
