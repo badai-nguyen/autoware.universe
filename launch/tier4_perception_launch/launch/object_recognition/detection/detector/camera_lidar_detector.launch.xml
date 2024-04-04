@@ -206,23 +206,24 @@
         </include>
       </group>
 
-      <group>
-        <include file="$(find-pkg-share shape_estimation)/launch/shape_estimation.launch.xml">
-          <arg name="input/objects" value="clusters"/>
-          <arg name="output/objects" value="objects_with_feature"/>
-        </include>
-      </group>
       <!-- add intensity validator -->
       <group>
         <include file="$(find-pkg-share intensity_based_validator)/launch/intensity_based_validator.launch.xml">
-          <arg name="input/objects" value="objects_with_feature"/>
-          <arg name="output/objects" value="validated_objects_with_feature"/>
+          <arg name="input/objects" value="clusters"/>
+          <arg name="output/objects" value="validated/clusters"/>
+        </include>
+      </group>
+
+      <group>
+        <include file="$(find-pkg-share shape_estimation)/launch/shape_estimation.launch.xml">
+          <arg name="input/objects" value="validated/clusters"/>
+          <arg name="output/objects" value="objects_with_feature"/>
         </include>
       </group>
       <!-- convert DynamicObjectsWithFeatureArray to DynamicObjects -->
       <group>
         <include file="$(find-pkg-share detected_object_feature_remover)/launch/detected_object_feature_remover.launch.xml">
-          <arg name="input" value="validated_objects_with_feature"/>
+          <arg name="input" value="objects_with_feature"/>
           <arg name="output" value="objects"/>
         </include>
       </group>
