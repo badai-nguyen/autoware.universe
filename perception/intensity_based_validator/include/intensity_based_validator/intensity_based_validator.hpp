@@ -15,6 +15,8 @@
 #ifndef INTENSITY_BASED_VALIDATOR__INTENSITY_BASED_VALIDATOR_HPP_
 #define INTENSITY_BASED_VALIDATOR__INTENSITY_BASED_VALIDATOR_HPP_
 
+#include "detected_object_validation/utils/utils.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 #include <tier4_autoware_utils/ros/debug_publisher.hpp>
 #include <tier4_autoware_utils/system/stop_watch.hpp>
@@ -62,6 +64,7 @@ private:
   // Eigen::Vector4f max_boundary_transformed_;
   bool is_validation_range_transformed_ = false;
   const std::string base_link_frame_id_ = "base_link";
+  utils::FilterTargetLabel filter_target_;
 
   // debugger
   std::unique_ptr<tier4_autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_{
