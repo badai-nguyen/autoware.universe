@@ -15,6 +15,7 @@
 #include "intensity_based_validator/intensity_based_validator.hpp"
 
 #include <pcl_ros/transforms.hpp>
+#include <tier4_autoware_utils/geometry/geometry.hpp>
 
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 namespace intensity_based_validator
@@ -30,6 +31,15 @@ IntensityBasedValidator::IntensityBasedValidator(const rclcpp::NodeOptions & nod
   min_x_ = declare_parameter<double>("min_x");
   max_y_ = declare_parameter<double>("max_y");
   min_y_ = declare_parameter<double>("min_y");
+
+  filter_target_.UNKNOWN = declare_parameter<bool>("filter_target_label.UNKNOWN", false);
+  filter_target_.CAR = declare_parameter<bool>("filter_target_label.CAR", false);
+  filter_target_.TRUCK = declare_parameter<bool>("filter_target_label.TRUCK", false);
+  filter_target_.BUS = declare_parameter<bool>("filter_target_label.BUS", false);
+  filter_target_.TRAILER = declare_parameter<bool>("filter_target_label.TRAILER", false);
+  filter_target_.MOTORCYCLE = declare_parameter<bool>("filter_target_label.MOTORCYCLE", false);
+  filter_target_.BICYCLE = declare_parameter<bool>("filter_target_label.BICYCLE", false);
+  filter_target_.PEDESTRIAN = declare_parameter<bool>("filter_target_label.PEDESTRIAN", false);
 
   using std::placeholders::_1;
   // Set publisher/subscriber
@@ -67,31 +77,22 @@ void IntensityBasedValidator::objectCallback(
     RCLCPP_ERROR(get_logger(), "Failed to lookup transform: %s", ex.what());
     return;
   }
-  Eigen::Matrix4f eigen_transform;
-  pcl_ros::transformAsMatrix(transform_stamp, eigen_transform);
-  Eigen::Vector4f min_boundary_base_frame(min_x_, min_y_, 0.0, 1.0);
-  Eigen::Vector4f max_boundary_base_frame(max_x_, max_y_, 0.0, 1.0);
-  Eigen::Vector4f min_boundary_transformed_ = eigen_transform * min_boundary_base_frame;
-  Eigen::Vector4f max_boundary_transformed_ = eigen_transform * max_boundary_base_frame;
-  min_x_transformed_ = min_boundary_transformed_(0);
-  min_y_transformed_ = min_boundary_transformed_(1);
-  max_x_transformed_ = max_boundary_transformed_(0);
-  max_y_transformed_ = max_boundary_transformed_(1);
-  RCLCPP_INFO(
-    get_logger(), "Transformed validation range: min_x: %f, min_y: %f, max_x: %f, max_y: %f",
-    min_x_transformed_, min_y_transformed_, max_x_transformed_, max_y_transformed_);
+  // TODO(badai-nguyen): transform validation range to map frame and use it to validate object
 
   for (const auto & feature_object : input_msg->feature_objects) {
     auto const & object = feature_object.object;
-    // auto const & label = object.classification.front().label;
+    auto const & label = object.classification.front().label;
     auto const & feature = feature_object.feature;
     auto const & cluster = feature.cluster;
     auto existance_probability = object.existence_probability;
-    // auto position = object.kinematics.pose_with_covariance.pose.position;
-    // bool is_inside_validation_range =
-    // (min_x_transformed_ < position.x && position.x < max_x_transformed_) && (min_y_transformed_ <
-    // position.y && position.y < max_y_transformed_);
-    if (!isValidatedCluster(cluster) && existance_probability < existance_probability_threshold_) {
+    auto pose = object.kinematics.pose_with_covariance.pose;
+    auto pose_transformed = tier4_autoware_utils::transformPose(pose, transform_stamp);
+    bool is_inside_validation_range =
+      (min_x_ < pose_transformed.position.x && pose_transformed.position.x < max_x_) &&
+      (min_y_ < pose_transformed.position.y && pose_transformed.position.y < max_y_);
+    if (
+      filter_target_.isTarget(label) && is_inside_validation_range &&
+      !isValidatedCluster(cluster) && existance_probability < existance_probability_threshold_) {
       continue;
     }
     output_object_msg.feature_objects.emplace_back(feature_object);
