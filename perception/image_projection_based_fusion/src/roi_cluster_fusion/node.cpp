@@ -197,6 +197,8 @@ void RoiClusterFusionNode::fuseOnSingleImage(
       }
     }
 
+    if (debugger_) debugger_->image_rois_.push_back(feature_obj.feature.roi);
+    if (debugger_) debugger_->max_iou_for_image_rois_.push_back(max_iou);
     if (!associated) {
       continue;
     }
@@ -232,8 +234,6 @@ void RoiClusterFusionNode::fuseOnSingleImage(
         }
       }
     }
-    if (debugger_) debugger_->image_rois_.push_back(feature_obj.feature.roi);
-    if (debugger_) debugger_->max_iou_for_image_rois_.push_back(max_iou);
   }
 
   // note: debug objects are safely cleared in fusion_node.cpp
