@@ -116,6 +116,7 @@ bool VoxelGridBasedEuclideanCluster::cluster(
     const int index =
       voxel_grid_.getCentroidIndexAt(voxel_grid_.getGridCoordinates(point.x, point.y, point.z));
     if (map.find(index) != map.end()) {
+      // TODO(badai-nguyen): check cluster size before copy is not correct. This is downsampled cluster and can skip some small objects
       auto & cluster_data_size = clusters_data_size.at(map[index]);
       if (cluster_data_size + point_step > std::size_t(max_cluster_size_ * point_step)) {
         continue;
