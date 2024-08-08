@@ -110,6 +110,7 @@ private:
   RoiOverlaySemsegLabel roi_overlay_segment_labels_;
   std::unique_ptr<autoware::universe_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_;
   std::unique_ptr<autoware::universe_utils::DebugPublisher> debug_publisher_;
+  int inference_delay_ms_ = 0;
 };
 
 }  // namespace autoware::tensorrt_yolox
