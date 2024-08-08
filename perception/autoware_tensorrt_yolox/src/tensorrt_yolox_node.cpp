@@ -20,8 +20,10 @@
 #include <autoware_perception_msgs/msg/object_classification.hpp>
 
 #include <algorithm>
+#include <chrono>
 #include <memory>
 #include <string>
+#include <thread>
 #include <utility>
 #include <vector>
 
@@ -80,6 +82,8 @@ TrtYoloXNode::TrtYoloXNode(const rclcpp::NodeOptions & node_options)
   roi_overlay_segment_labels_.PEDESTRIAN =
     declare_parameter<bool>("roi_overlay_segment_label.PEDESTRIAN");
   roi_overlay_segment_labels_.ANIMAL = declare_parameter<bool>("roi_overlay_segment_label.ANIMAL");
+  inference_delay_ms_ = declare_parameter("inference_delay_ms");
+
   replaceLabelMap();
 
   tensorrt_common::BuildConfig build_config(
@@ -146,7 +150,7 @@ void TrtYoloXNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
   std::vector<cv::Mat> masks = {cv::Mat(cv::Size(height, width), CV_8UC1, cv::Scalar(0))};
   std::vector<cv::Mat> color_masks = {
     cv::Mat(cv::Size(height, width), CV_8UC3, cv::Scalar(0, 0, 0))};
-
+  std::this_thread::sleep_for(std::chrono::milliseconds(inference_delay_ms_));
   if (!trt_yolox_->doInference({in_image_ptr->image}, objects, masks, color_masks)) {
     RCLCPP_WARN(this->get_logger(), "Fail to inference");
     return;
