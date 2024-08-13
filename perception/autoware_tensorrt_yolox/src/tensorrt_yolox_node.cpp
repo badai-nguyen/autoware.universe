@@ -80,6 +80,7 @@ TrtYoloXNode::TrtYoloXNode(const rclcpp::NodeOptions & node_options)
   roi_overlay_segment_labels_.PEDESTRIAN =
     declare_parameter<bool>("roi_overlay_segment_label.PEDESTRIAN");
   roi_overlay_segment_labels_.ANIMAL = declare_parameter<bool>("roi_overlay_segment_label.ANIMAL");
+  cuda_stream_priority_ = declare_parameter<int>("cuda_stream_priority");
   replaceLabelMap();
 
   tensorrt_common::BuildConfig build_config(
@@ -94,7 +95,7 @@ TrtYoloXNode::TrtYoloXNode(const rclcpp::NodeOptions & node_options)
   trt_yolox_ = std::make_unique<tensorrt_yolox::TrtYoloX>(
     model_path, precision, label_map_.size(), score_threshold, nms_threshold, build_config,
     preprocess_on_gpu, calibration_image_list_path, norm_factor, cache_dir, batch_config,
-    max_workspace_size, color_map_path);
+    cuda_stream_priority_, max_workspace_size, color_map_path);
 
   timer_ =
     rclcpp::create_timer(this, get_clock(), 100ms, std::bind(&TrtYoloXNode::onConnect, this));

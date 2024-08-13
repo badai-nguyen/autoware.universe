@@ -158,7 +158,7 @@ TrtYoloX::TrtYoloX(
   const float score_threshold, const float nms_threshold, tensorrt_common::BuildConfig build_config,
   const bool use_gpu_preprocess, std::string calibration_image_list_path, const double norm_factor,
   [[maybe_unused]] const std::string & cache_dir, const tensorrt_common::BatchConfig & batch_config,
-  const size_t max_workspace_size, const std::string & color_map_path)
+  const int priority, const size_t max_workspace_size, const std::string & color_map_path)
 {
   src_width_ = -1;
   src_height_ = -1;
@@ -177,7 +177,7 @@ TrtYoloX::TrtYoloX(
       // if clip value is larger than zero, calibration file is not needed
       calibration_image_list_path = "";
     }
-
+    stream_ = makeCudaStreamWithPriority(priority);
     int max_batch_size = batch_size_;
     nvinfer1::Dims input_dims = tensorrt_common::get_input_dims(model_path);
     std::vector<std::string> calibration_images;

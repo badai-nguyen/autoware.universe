@@ -47,6 +47,16 @@ inline StreamUniquePtr makeCudaStream(const uint32_t flags = cudaStreamDefault)
   }
   return stream;
 }
+
+inline StreamUniquePtr makeCudaStreamWithPriority(
+  const int priority, const uint32_t flags = cudaStreamDefault)
+{
+  StreamUniquePtr stream(new cudaStream_t, StreamDeleter());
+  if (cudaStreamCreateWithPriority(stream.get(), flags, priority) != cudaSuccess) {
+    stream.reset(nullptr);
+  }
+  return stream;
+}
 }  // namespace cuda_utils
 
 #endif  // CUDA_UTILS__STREAM_UNIQUE_PTR_HPP_
