@@ -107,6 +107,7 @@ private:
     {"BICYCLE", 8},     // bicycle
     {"MOTORBIKE", 8},   // motorcycle
   };
+  int cuda_stream_priority_;
   RoiOverlaySemsegLabel roi_overlay_segment_labels_;
   std::unique_ptr<autoware::universe_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_;
   std::unique_ptr<autoware::universe_utils::DebugPublisher> debug_publisher_;

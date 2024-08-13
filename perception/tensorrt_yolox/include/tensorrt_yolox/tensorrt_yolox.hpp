@@ -30,6 +30,7 @@ namespace tensorrt_yolox
 using cuda_utils::CudaUniquePtr;
 using cuda_utils::CudaUniquePtrHost;
 using cuda_utils::makeCudaStream;
+using cuda_utils::makeCudaStreamWithPriority;
 using cuda_utils::StreamUniquePtr;
 
 struct Object
@@ -91,7 +92,7 @@ public:
     const tensorrt_common::BuildConfig build_config = tensorrt_common::BuildConfig(),
     const bool use_gpu_preprocess = false, std::string calibration_image_list_file = std::string(),
     const double norm_factor = 1.0, [[maybe_unused]] const std::string & cache_dir = "",
-    const tensorrt_common::BatchConfig & batch_config = {1, 1, 1},
+    const tensorrt_common::BatchConfig & batch_config = {1, 1, 1}, const int priority = 0,
     const size_t max_workspace_size = (1 << 30), const std::string & color_map_path = "");
   /**
    * @brief Deconstruct TrtYoloX
@@ -267,7 +268,7 @@ private:
   size_t out_elem_num_per_batch_;
   CudaUniquePtr<float[]> out_prob_d_;
 
-  StreamUniquePtr stream_{makeCudaStream()};
+  StreamUniquePtr stream_;
 
   int32_t max_detections_;
   std::vector<float> scales_;
