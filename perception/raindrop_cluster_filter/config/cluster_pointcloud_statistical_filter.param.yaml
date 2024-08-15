@@ -1,9 +1,9 @@
 /**:
   ros__parameters:
-    max_x: 60.0
-    min_x: -20.0
-    max_y: 20.0
-    min_y: -20.0
+    max_x: 10.0
+    min_x: -5.0
+    max_y: 5.0
+    min_y: -5.0
     filter_target_label:
       UNKNOWN: true
       CAR: false
@@ -13,3 +13,5 @@
       MOTORCYCLE: false
       BICYCLE: false
       PEDESTRIAN: false
+    nearest_points_num: 5
+    normal_threshold: 0.5

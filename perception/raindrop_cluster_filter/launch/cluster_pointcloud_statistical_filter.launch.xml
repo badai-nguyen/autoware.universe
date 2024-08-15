@@ -3,7 +3,7 @@
   <arg name="input/objects" default="/perception/object_recognition/detection/clustering/objects_with_feature"/>
   <arg name="output/objects" default="/perception/object_recognition/detection/clustering/validated_objects_with_feature"/>
 
-  <arg name="cluster_pointcloud_statistical_filter_param_path" default="$(find-pkg-share raindrop_cluster_filter)/config/low_intensity_cluster_filter.param.yaml"/>
+  <arg name="cluster_pointcloud_statistical_filter_param_path" default="$(find-pkg-share raindrop_cluster_filter)/config/cluster_pointcloud_statistical_filter.param.yaml"/>
 
   <node pkg="raindrop_cluster_filter" exec="cluster_pointcloud_statistical_filter_node" name="cluster_pointcloud_statistical_filter_node" output="screen">
     <remap from="input/objects" to="$(var input/objects)"/>

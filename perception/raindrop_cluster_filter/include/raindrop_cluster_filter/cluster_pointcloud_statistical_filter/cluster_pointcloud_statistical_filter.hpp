@@ -59,6 +59,8 @@ private:
   double min_x_transformed_;
   double max_y_transformed_;
   double min_y_transformed_;
+  int nearest_points_num_;
+  double normal_threshold_;
   // Eigen::Vector4f min_boundary_transformed_;
   // Eigen::Vector4f max_boundary_transformed_;
   bool is_validation_range_transformed_ = false;

@@ -21,6 +21,10 @@
 #include <sensor_msgs/point_cloud2_iterator.hpp>
 
 #include <pcl_conversions/pcl_conversions.h>
+#include <pcl/kdtree/kdtree_flann.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+
 namespace cluster_pointcloud_statistical_filter
 {
 ClusterPointcloudStatisticalFilter::ClusterPointcloudStatisticalFilter(const rclcpp::NodeOptions & node_options)
@@ -42,6 +46,8 @@ ClusterPointcloudStatisticalFilter::ClusterPointcloudStatisticalFilter(const rcl
   filter_target_.BICYCLE = declare_parameter<bool>("filter_target_label.BICYCLE");
   filter_target_.PEDESTRIAN = declare_parameter<bool>("filter_target_label.PEDESTRIAN");
 
+  nearest_points_num_ = declare_parameter<int>("nearest_points_num");
+  normal_threshold_ = declare_parameter<double>("normal_threshold");
   using std::placeholders::_1;
   // Set publisher/subscriber
   object_sub_ = this->create_subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
@@ -93,7 +99,6 @@ void ClusterPointcloudStatisticalFilter::objectCallback(
     const auto & label = object.classification.front().label;
     const auto & feature = feature_object.feature;
     const auto & cluster = feature.cluster;
-    const auto existence_probability = object.existence_probability;
     const auto & position = object.kinematics.pose_with_covariance.pose.position;
     bool is_inside_validation_range = min_ranged_transformed.position.x < position.x &&
                                       position.x < max_range_transformed.position.x &&
@@ -120,9 +125,55 @@ void ClusterPointcloudStatisticalFilter::objectCallback(
 bool ClusterPointcloudStatisticalFilter::isValidatedCluster(const sensor_msgs::msg::PointCloud2 & cluster, 
   const geometry_msgs::msg::Pose & base_link_origin)
 {
-  double mean_distance = 0.0;
-  double mean_x, mean_y, mean_z;
-  double stddev = 0.0;
+  // convert to pcl pointcloud 
+  pcl::PointCloud<pcl::PointXYZ>::Ptr pcl_cluster(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::fromROSMsg(cluster, *pcl_cluster);
+  pcl::KdTreeFLANN<pcl::PointXYZ> kd_tree;
+  kd_tree.setInputCloud(pcl_cluster);
+  std::vector<int> pointIdxNRNSearch(nearest_points_num_);
+  std::vector<float> pointRadiusSquaredDistance(nearest_points_num_);
+  std::vector<double> distances;
+  std::vector<Eigen::Vector3d> normals_vectors;
+  std::vector<size_t> nearest_points_indices; 
+  
+  // go though each point in the cluster and find the nearest points
+  for (size_t i = 0; i < pcl_cluster->points.size(); i++) {
+    kd_tree.nearestKSearch(pcl_cluster->points[i], nearest_points_num_, pointIdxNRNSearch, pointRadiusSquaredDistance);
+    nearest_points_indices.push_back(pointIdxNRNSearch[0]);
+    // calculate covariance matrix
+    Eigen::Matrix3d covariance_matrix = Eigen::Matrix3d::Zero();
+    Eigen::Vector3d mean_point = Eigen::Vector3d::Zero();
+    for (size_t j = 0; j < pointIdxNRNSearch.size(); j++) {
+      mean_point += Eigen::Vector3d(pcl_cluster->points[pointIdxNRNSearch[j]].x,
+                                    pcl_cluster->points[pointIdxNRNSearch[j]].y,
+                                    pcl_cluster->points[pointIdxNRNSearch[j]].z);
+    }
+    mean_point /= static_cast<double>(pointIdxNRNSearch.size());
+    for (size_t j = 0; j < pointIdxNRNSearch.size(); j++) {
+      Eigen::Vector3d point(pcl_cluster->points[pointIdxNRNSearch[j]].x,
+                            pcl_cluster->points[pointIdxNRNSearch[j]].y,
+                            pcl_cluster->points[pointIdxNRNSearch[j]].z);
+      covariance_matrix += (point - mean_point) * (point - mean_point).transpose();
+    }
+    covariance_matrix /= static_cast<double>(pointIdxNRNSearch.size());
+    // calculate eigenvalues
+    Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> eigen_solver(covariance_matrix);
+    Eigen::Vector3d eigen_values = eigen_solver.eigenvalues();
+    normals_vectors.push_back(eigen_values);
+  }
+
+  // calculate dot product of normals of pair neighboring points
+  double C_normal = 0.0;
+  for (size_t i = 0; i < pcl_cluster->points.size(); i++) {
+    Eigen::Vector3d curr_normal = normals_vectors[i];
+    Eigen::Vector3d neighbor_normal = normals_vectors[nearest_points_indices[i]];
+    C_normal += curr_normal.dot(neighbor_normal);
+  }
+  C_normal /= static_cast<double>(pcl_cluster->points.size());
+  RCLCPP_INFO(get_logger(), "C_normal: %f", C_normal);
+  if (C_normal > normal_threshold_) {
+    return false;
+  }
   return true;
 
 }
