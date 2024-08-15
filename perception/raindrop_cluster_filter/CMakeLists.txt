@@ -17,6 +17,13 @@ rclcpp_components_register_node(low_intensity_cluster_filter
   PLUGIN "low_intensity_cluster_filter::LowIntensityClusterFilter"
   EXECUTABLE low_intensity_cluster_filter_node)
 
+ament_auto_add_library(cluster_pointcloud_statistical_filter SHARED
+  src/cluster_pointcloud_statistical_filter.cpp
+)
+
+rclcpp_components_register_node(cluster_pointcloud_statistical_filter
+  PLUGIN "cluster_pointcloud_statistical_filter::ClusterPointcloudStatisticalFilter"
+  EXECUTABLE cluster_pointcloud_statistical_filter_node)
 
 if(BUILD_TESTING)
   list(APPEND AMENT_LINT_AUTO_EXCLUDE ament_cmake_uncrustify)
