@@ -39,6 +39,7 @@ SegmentPointCloudFusionNode::SegmentPointCloudFusionNode(const rclcpp::NodeOptio
     RCLCPP_INFO(
       this->get_logger(), "filter_semantic_label_target: %s %d", item.first.c_str(), item.second);
   }
+  // TODO(badai-nguyen): fix debug_mask in case camera_num > 1
   is_publish_debug_mask_ = declare_parameter<bool>("is_publish_debug_mask");
   pub_debug_mask_ptr_ = image_transport::create_publisher(this, "debug/mask");
 }
