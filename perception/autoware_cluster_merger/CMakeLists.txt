@@ -16,9 +16,14 @@ rclcpp_components_register_node(${PROJECT_NAME}
 
 
 if(BUILD_TESTING)
-  list(APPEND AMENT_LINT_AUTO_EXCLUDE ament_cmake_uncrustify)
-  find_package(ament_lint_auto REQUIRED)
-  ament_lint_auto_find_test_dependencies()
+  #list(APPEND AMENT_LINT_AUTO_EXCLUDE ament_cmake_uncrustify)
+  #find_package(ament_lint_auto REQUIRED)
+  #ament_lint_auto_find_test_dependencies()
+  
+  find_package(launch_testing_ament_cmake REQUIRED)
+  add_launch_test(test/test_cluster_merger_node.py)
+
+
 endif()
 
 ament_auto_package(
