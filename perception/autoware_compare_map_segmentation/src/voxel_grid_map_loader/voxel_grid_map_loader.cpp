@@ -268,12 +268,9 @@ void VoxelGridStaticMapLoader::onMapCallback(
   std::ostringstream logStream_;
   int original_stderr_fd = dup(fileno(stderr));
   // Create a temporary file to capture stderr output
-  FILE * temp_file = tmpfile();     // Creates a temporary file
-  int temp_fd = fileno(temp_file);  // Get the file descriptor for the temporary file
-
-  // Redirect stderr to the temporary file
-  dup2(temp_fd, fileno(stderr));  // Redirects stderr to the temporary file
-  // Call the base class method that generates the PCL_WARN logs
+  FILE * temp_file = tmpfile();
+  int temp_fd = fileno(temp_file);
+  dup2(temp_fd, fileno(stderr));
 
   voxel_map_ptr_.reset(new pcl::PointCloud<pcl::PointXYZ>);
   voxel_grid_.setLeafSize(voxel_leaf_size_, voxel_leaf_size_, voxel_leaf_size_z_);
@@ -282,25 +279,19 @@ void VoxelGridStaticMapLoader::onMapCallback(
   voxel_grid_.filter(*voxel_map_ptr_);
 
   // Flush stderr to ensure all output is captured
-  fflush(stderr);  // Ensure all output to stderr is flushed
-
-  // Read the contents of the temporary file (captured stderr output)
-  fseek(temp_file, 0, SEEK_SET);  // Go back to the start of the file
+  fflush(stderr);
+  fseek(temp_file, 0, SEEK_SET);
   char buffer[256];
-
-  // Read the log messages from the temporary file into the stream
   while (fgets(buffer, sizeof(buffer), temp_file) != nullptr) {
-    logStream_ << buffer;  // Store the logs in the provided ostringstream
+    logStream_ << buffer;
   }
 
-  // Close the temporary file and restore the original stderr
   fclose(temp_file);
-  dup2(original_stderr_fd, fileno(stderr));  // Restore the original stderr
-  close(original_stderr_fd);                 // Close the duplicated file descriptor
+  dup2(original_stderr_fd, fileno(stderr));
+  close(original_stderr_fd);
 
   std::string logMessage = logStream_.str();
 
-  // Check if the log contains the specific message
   std::string searchString =
     "Leaf size is too small for the input dataset. Integer indices would overflow.";
   if (logMessage.find(searchString) != std::string::npos) {
