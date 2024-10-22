@@ -57,14 +57,56 @@ TrafficLightFineDetectorNodelet::TrafficLightFineDetectorNodelet(
   const rclcpp::NodeOptions & options)
 : Node("traffic_light_fine_detector_node", options)
 {
-  int num_class = 2;
+  int num_class = 10;
   using std::placeholders::_1;
   using std::placeholders::_2;
   using std::placeholders::_3;
 
+  auto declare_parameter_with_description =
+  [this](std::string name, auto default_val, std::string description = "") {
+    auto param_desc = rcl_interfaces::msg::ParameterDescriptor{};
+    param_desc.description = description;
+    return this->declare_parameter(name, default_val, param_desc);
+  };
+
   std::string model_path = declare_parameter("fine_detector_model_path", "");
   std::string label_path = declare_parameter("fine_detector_label_path", "");
-  std::string precision = declare_parameter("fine_detector_precision", "fp32");
+  std::string precision = declare_parameter("fine_detector_precision", "int8");
+  std::string calibration_algorithm = declare_parameter_with_description(
+    "calibration_algorithm", "Entropy",
+    ("Calibration algorithm to be used for quantization when precision==int8. "
+     "Valid value is one of: [Entropy, (Legacy | Percentile), MinMax]"));
+  double clip_value = declare_parameter_with_description(
+    "clip_value", 0.0,
+    ("If positive value is specified, "
+     "the value of each layer output will be clipped between [0.0, clip_value]. "
+     "This option is valid only when precision==int8 and used to manually specify "
+     "the dynamic range instead of using any calibration"));
+  std::string calibration_image_list_path = declare_parameter_with_description(
+    "calibration_image_list_path", "/tmp/",
+    ("Path to a file which contains path to images."
+     "Those images will be used for int8 quantization."));
+  int dla_core_id = declare_parameter_with_description(
+    "dla_core_id", -1,
+    "If positive ID value is specified, the node assign inference task to the DLA core");
+  bool quantize_first_layer = declare_parameter_with_description(
+    "quantize_first_layer", false,
+    ("If true, set the operating precision for the first (input) layer to be fp16. "
+     "This option is valid only when precision==int8"));
+  bool quantize_last_layer = declare_parameter_with_description(
+    "quantize_last_layer", false,
+    ("If true, set the operating precision for the last (output) layer to be fp16. "
+     "This option is valid only when precision==int8"));
+  bool profile_per_layer = declare_parameter_with_description(
+    "profile_per_layer", false,
+    ("If true, profiler function will be enabled. "
+     "Since the profile function may affect execution speed, it is recommended "
+     "to set this flag true only for development purpose."));
+  
+
+  tensorrt_common::BuildConfig build_config(
+    calibration_algorithm, dla_core_id, quantize_first_layer, quantize_last_layer,
+    profile_per_layer, clip_value);
   // Objects with a score lower than this value will be ignored.
   // This threshold will be ignored if specified model contains EfficientNMS_TRT module in it
   score_thresh_ = declare_parameter("fine_detector_score_thresh", 0.3);
@@ -76,10 +118,6 @@ TrafficLightFineDetectorNodelet::TrafficLightFineDetectorNodelet(
   if (!readLabelFile(label_path, tlr_label_id_, num_class)) {
     RCLCPP_ERROR(this->get_logger(), "Could not find tlr id");
   }
-
-  const tensorrt_common::BuildConfig build_config =
-    tensorrt_common::BuildConfig("MinMax", -1, false, false, false, 0.0);
-
   const bool cuda_preprocess = true;
   const std::string calib_image_list = "";
   const double scale = 1.0;
@@ -92,12 +130,20 @@ TrafficLightFineDetectorNodelet::TrafficLightFineDetectorNodelet(
   trt_yolox_ = std::make_unique<tensorrt_yolox::TrtYoloX>(
     model_path, precision, num_class, score_thresh_, nms_threshold, build_config, cuda_preprocess,
     calib_image_list, scale, cache_dir, batch_config);
+  // trt_yolox_ = std::make_unique<tensorrt_yolox::TrtYoloX>(
+  //   model_path, precision, num_class., score_threshold, nms_threshold, build_config,
+  //   preprocess_on_gpu, calibration_image_list_path, norm_factor, cache_dir, batch_config,
+  //   max_workspace_size, color_map_path);
+
+
 
   using std::chrono_literals::operator""ms;
   timer_ = rclcpp::create_timer(
     this, get_clock(), 100ms, std::bind(&TrafficLightFineDetectorNodelet::connectCb, this));
 
   std::lock_guard<std::mutex> lock(connect_mutex_);
+  // publish debug image
+  image_pub_ = image_transport::create_publisher(this, "~/debug/fine_detector/rois");
   output_roi_pub_ = this->create_publisher<TrafficLightRoiArray>("~/output/rois", 1);
   exe_time_pub_ =
     this->create_publisher<tier4_debug_msgs::msg::Float32Stamped>("~/debug/exe_time_ms", 1);
@@ -158,50 +204,107 @@ void TrafficLightFineDetectorNodelet::callback(
   std::vector<cv::Point> lts;
   std::vector<size_t> roi_ids;
 
-  for (size_t roi_i = 0; roi_i < rough_roi_msg->rois.size(); roi_i++) {
-    const auto & rough_roi = rough_roi_msg->rois[roi_i];
-    cv::Point lt(rough_roi.roi.x_offset, rough_roi.roi.y_offset);
-    cv::Point rb(
-      rough_roi.roi.x_offset + rough_roi.roi.width, rough_roi.roi.y_offset + rough_roi.roi.height);
-    fitInFrame(lt, rb, cv::Size(original_image.size()));
-    rois.emplace_back(lt, rb);
-    lts.emplace_back(lt);
-    roi_ids.emplace_back(rough_roi.traffic_light_id);
-    // keep the actual batch size
-    size_t true_batch_size = rois.size();
-    // insert fake rois since the TRT model requires static batch size
-    if (roi_i + 1 == rough_roi_msg->rois.size()) {
-      while (static_cast<int>(rois.size()) < batch_size_) {
-        rois.emplace_back(rois.front());
+  // cv_bridge::CvImagePtr in_image_ptr;
+  // try {
+  //   in_image_ptr = cv_bridge::toCvCopy(in_image_msg, sensor_msgs::image_encodings::BGR8);
+  // } catch (cv_bridge::Exception & e) {
+  //   RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+  //   return;
+  // }
+
+  // replace with new yolox inference 
+  // tensorrt_yolox::ObjectArrays objects
+  auto height = original_image.rows;
+  auto width = original_image.cols;
+  std::vector<cv::Mat> masks = {cv::Mat(cv::Size(height, width), CV_8UC1, cv::Scalar(0))};
+  std::vector<cv::Mat> color_masks = {
+    cv::Mat(cv::Size(height, width), CV_8UC3, cv::Scalar(0, 0, 0))};
+  trt_yolox_->doInference({original_image},inference_results, masks, color_masks);
+  // check if result is in rough roi
+  for (auto & rough_roi : rough_roi_msg->rois) {
+    // Convert unsigned integers to int to ensure signedness match
+    int rough_x_offset = static_cast<int>(rough_roi.roi.x_offset);
+    int rough_y_offset = static_cast<int>(rough_roi.roi.y_offset);
+    int rough_width = static_cast<int>(rough_roi.roi.width);
+    int rough_height = static_cast<int>(rough_roi.roi.height);
+    cv::rectangle(
+      original_image, cv::Point(rough_x_offset, rough_y_offset),
+      cv::Point(rough_x_offset + rough_width, rough_y_offset + rough_height),
+      cv::Scalar(0, 255, 0), 3, 8, 0);
+    for (auto & detected_roi : inference_results[0]) {
+      int detected_x_offset = static_cast<int>(detected_roi.x_offset);
+      int detected_y_offset = static_cast<int>(detected_roi.y_offset);
+      int detected_width = static_cast<int>(detected_roi.width);
+      int detected_height = static_cast<int>(detected_roi.height);
+      // Check if detected_roi is inside rough_roi
+      if (rough_x_offset < detected_x_offset &&
+          rough_y_offset < detected_y_offset &&
+          rough_x_offset + rough_width > detected_x_offset + detected_width &&
+          rough_y_offset + rough_height > detected_y_offset + detected_height) {
+        id2detections[rough_roi.traffic_light_id].push_back(detected_roi);
+        // RCLCPP_INFO(
+        //   this->get_logger(), "Detected traffic light in rough roi: %ld, detected_roi: %d, %d, %d, %d", rough_roi.traffic_light_id, detected_x_offset, detected_y_offset, detected_width, detected_height);
+        // draw rectangle on input image
+        cv::rectangle(
+          original_image, cv::Point(detected_x_offset, detected_y_offset),
+          cv::Point(detected_x_offset + detected_width, detected_y_offset + detected_height),
+          cv::Scalar(255, 0, 255), 3, 8, 0);
+        // draw rough roi
       }
-    }
-    if (static_cast<int>(rois.size()) == batch_size_) {
-      trt_yolox_->doMultiScaleInference(original_image, inference_results, rois);
-      for (size_t batch_i = 0; batch_i < true_batch_size; batch_i++) {
-        for (const tensorrt_yolox::Object & detection : inference_results[batch_i]) {
-          if (detection.score < score_thresh_) {
-            continue;
-          }
-          cv::Point lt_roi(
-            lts[batch_i].x + detection.x_offset, lts[batch_i].y + detection.y_offset);
-          cv::Point rb_roi(lt_roi.x + detection.width, lt_roi.y + detection.height);
-          fitInFrame(lt_roi, rb_roi, cv::Size(original_image.size()));
-          tensorrt_yolox::Object det = detection;
-          det.x_offset = lt_roi.x;
-          det.y_offset = lt_roi.y;
-          det.width = rb_roi.x - lt_roi.x;
-          det.height = rb_roi.y - lt_roi.y;
-          det.type = detection.type;
-          id2detections[roi_ids[batch_i]].push_back(det);
-        }
-      }
-      rois.clear();
-      lts.clear();
-      inference_results.clear();
-      roi_ids.clear();
     }
   }
-  detectionMatch(id2expectRoi, id2detections, out_rois);
+  // for (size_t roi_i = 0; roi_i < rough_roi_msg->rois.size(); roi_i++) {
+  //   const auto & rough_roi = rough_roi_msg->rois[roi_i];
+  //   cv::Point lt(rough_roi.roi.x_offset, rough_roi.roi.y_offset);
+  //   cv::Point rb(
+  //     rough_roi.roi.x_offset + rough_roi.roi.width, rough_roi.roi.y_offset + rough_roi.roi.height);
+  //   fitInFrame(lt, rb, cv::Size(original_image.size()));
+  //   rois.emplace_back(lt, rb);
+  //   lts.emplace_back(lt);
+  //   roi_ids.emplace_back(rough_roi.traffic_light_id);
+  //   // keep the actual batch size
+  //   size_t true_batch_size = rois.size();
+  //   // insert fake rois since the TRT model requires static batch size
+  //   if (roi_i + 1 == rough_roi_msg->rois.size()) {
+  //     while (static_cast<int>(rois.size()) < batch_size_) {
+  //       rois.emplace_back(rois.front());
+  //     }
+  //   }
+  //   if (static_cast<int>(rois.size()) == batch_size_) {
+  //     trt_yolox_->doMultiScaleInference(original_image, inference_results, rois);
+  //     for (size_t batch_i = 0; batch_i < true_batch_size; batch_i++) {
+  //       for (const tensorrt_yolox::Object & detection : inference_results[batch_i]) {
+  //         if (detection.score < score_thresh_) {
+  //           continue;
+  //         }
+  //         cv::Point lt_roi(
+  //           lts[batch_i].x + detection.x_offset, lts[batch_i].y + detection.y_offset);
+  //         cv::Point rb_roi(lt_roi.x + detection.width, lt_roi.y + detection.height);
+  //         fitInFrame(lt_roi, rb_roi, cv::Size(original_image.size()));
+  //         tensorrt_yolox::Object det = detection;
+  //         det.x_offset = lt_roi.x;
+  //         det.y_offset = lt_roi.y;
+  //         det.width = rb_roi.x - lt_roi.x;
+  //         det.height = rb_roi.y - lt_roi.y;
+  //         det.type = detection.type;
+  //         id2detections[roi_ids[batch_i]].push_back(det);
+  //       }
+  //     }
+  //     rois.clear();
+  //     lts.clear();
+  //     inference_results.clear();
+  //     roi_ids.clear();
+  //   }
+  // }
+  // publish debug image
+  // convert original_image to sensor_msgs::msg::Image
+  cv_bridge::CvImage cv_image;
+  cv_image.image = original_image;
+  cv_image.encoding = "bgr8";
+  cv_image.header = in_image_msg->header;
+  image_pub_.publish(cv_image.toImageMsg());
+  // image_pub_.publish(in_image_ptr->toImageMsg());
+  // detectionMatch(id2expectRoi, id2detections, out_rois);
   out_rois.header = rough_roi_msg->header;
   output_roi_pub_->publish(out_rois);
   const auto exe_end_time = high_resolution_clock::now();
@@ -350,7 +453,7 @@ bool TrafficLightFineDetectorNodelet::readLabelFile(
     }
     idx++;
   }
-  num_class = idx;
+  num_class = 10;
   return tlr_label_id_.size() != 0;
 }
 

@@ -165,6 +165,7 @@ private:
   bool is_approximate_sync_;
   double score_thresh_;
   std::vector<int> tlr_label_id_;
+  image_transport::Publisher image_pub_;
 
   int batch_size_;
   std::unique_ptr<tensorrt_yolox::TrtYoloX> trt_yolox_;
