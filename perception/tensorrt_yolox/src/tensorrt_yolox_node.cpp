@@ -214,19 +214,21 @@ std::vector<cv::Scalar> objects_cl_map_ = {
     object.object.classification =
       object_recognition_utils::toObjectClassifications(label_map_[yolox_object.type], 1.0f);
     out_objects.feature_objects.push_back(object);
-    const auto left = std::max(0, static_cast<int>(object.feature.roi.x_offset));
-    const auto top = std::max(0, static_cast<int>(object.feature.roi.y_offset));
-    const auto right =
-      std::min(static_cast<int>(object.feature.roi.x_offset + object.feature.roi.width), width);
-    const auto bottom =
-      std::min(static_cast<int>(object.feature.roi.y_offset + object.feature.roi.height), height);
-    cv::rectangle(
-      in_image_ptr->image, cv::Point(left, top), cv::Point(right, bottom), objects_cl_map_.at(yolox_object.type), 3,
-      8, 0);
-    // Refine mask: replacing segmentation mask by roi class
-    // This should remove when the segmentation accuracy is high
-    if (is_roi_overlap_segment_ && trt_yolox_->getMultitaskNum() > 0) {
-      overlapSegmentByRoi(yolox_object, mask, width, height);
+    if (yolox_object.type == 8){
+      const auto left = std::max(0, static_cast<int>(object.feature.roi.x_offset));
+      const auto top = std::max(0, static_cast<int>(object.feature.roi.y_offset));
+      const auto right =
+        std::min(static_cast<int>(object.feature.roi.x_offset + object.feature.roi.width), width);
+      const auto bottom =
+        std::min(static_cast<int>(object.feature.roi.y_offset + object.feature.roi.height), height);
+      cv::rectangle(
+        in_image_ptr->image, cv::Point(left, top), cv::Point(right, bottom), objects_cl_map_.at(yolox_object.type), 3,
+        8, 0);
+      // Refine mask: replacing segmentation mask by roi class
+      // This should remove when the segmentation accuracy is high
+      if (is_roi_overlap_segment_ && trt_yolox_->getMultitaskNum() > 0) {
+        overlapSegmentByRoi(yolox_object, mask, width, height);
+      }
     }
   }
   if (trt_yolox_->getMultitaskNum() > 0) {
