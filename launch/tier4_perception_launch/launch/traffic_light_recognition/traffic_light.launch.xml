@@ -19,7 +19,7 @@
   <arg name="use_crosswalk_traffic_light_estimator" default="true" description="output pedestrian's traffic light signals"/>
   <arg name="crosswalk_traffic_light_estimator_param_file" default="$(find-pkg-share autoware_crosswalk_traffic_light_estimator)/config/crosswalk_traffic_light_estimator.param.yaml"/>
   <arg name="image_number" default="1" description="choose image raw number(1-2)"/>
-  <arg name="namespace1" default="camera6"/>
+  <arg name="namespace1" default="camera7"/>
   <arg name="namespace2" default="camera7"/>
   <let name="all_camera_namespaces" value="[$(var namespace1)]" if="$(eval &quot; '$(var image_number)' == '1' &quot;)"/>
   <let name="all_camera_namespaces" value="[$(var namespace1), $(var namespace2)]" if="$(eval &quot; '$(var image_number)' >= '2' &quot;)"/>
