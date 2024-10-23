@@ -196,16 +196,42 @@ void TrafficLightFineDetectorNodelet::callback(
   }
 
   rosMsg2CvMat(in_image_msg, pre_crop_image, "bgr8");
+  // change to dynamic crop which cover rough roi
+  int rough_x_offset_min = pre_crop_image.cols;
+  int rough_y_offset_min = pre_crop_image.rows;
+  int rough_x_offset_max = 0;
+  int rough_y_offset_max = 0;
+
+  for (auto & rough_roi : rough_roi_msg->rois) {
+    // Convert unsigned integers to int to ensure signedness match
+    int rough_x_offset = static_cast<int>(rough_roi.roi.x_offset);
+    int rough_y_offset = static_cast<int>(rough_roi.roi.y_offset);
+    int rough_width = static_cast<int>(rough_roi.roi.width);
+    int rough_height = static_cast<int>(rough_roi.roi.height);
+    rough_x_offset = std::max(rough_x_offset, 0);
+    rough_y_offset = std::max(rough_y_offset, 0);
+    rough_width = std::min(rough_width, pre_crop_image.cols - rough_x_offset);
+    rough_height = std::min(rough_height, pre_crop_image.rows - rough_y_offset);
+    rough_x_offset_min = std::min(rough_x_offset_min, rough_x_offset);
+    rough_y_offset_min = std::min(rough_y_offset_min, rough_y_offset);
+    rough_x_offset_max = std::max(rough_x_offset_max, rough_x_offset + rough_width);
+    rough_y_offset_max = std::max(rough_y_offset_max, rough_y_offset + rough_height);
+
+  }
+
   // center of pre_crop_image
-  int center_x = pre_crop_image.cols / 2;
-  int center_y = pre_crop_image.rows / 2;
+  int center_x = (rough_x_offset_min + rough_x_offset_max)/2;
+  int center_y = (rough_y_offset_min + rough_y_offset_max)/2;
 
   // crop center of image into original_image
-  int crop_size_x = 1280;
-  int crop_size_y = 960;
-
-  int crop_top_left_x = center_x - crop_size_x / 2;
-  int crop_top_left_y = center_y - crop_size_y / 2;
+  int crop_size_x = rough_x_offset_max - rough_x_offset_min;
+  int crop_size_y = rough_y_offset_max - rough_y_offset_min;
+  crop_size_x = std::max(crop_size_x, 1280);
+  crop_size_y = std::max(crop_size_y, 960);
+  int crop_top_left_x = std::max(0, center_x - crop_size_x/2);
+  int crop_top_left_y = std::max(0, center_y - crop_size_y/2);
+  crop_size_x = std::min(crop_size_x, pre_crop_image.cols - crop_top_left_x);
+  crop_size_y = std::min(crop_size_y, pre_crop_image.rows - crop_top_left_y);
 
   cv::Mat original_image =
     pre_crop_image(cv::Rect(crop_top_left_x, crop_top_left_y, crop_size_x, crop_size_y));
