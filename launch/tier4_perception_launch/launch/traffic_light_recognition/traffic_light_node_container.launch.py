@@ -17,6 +17,7 @@ import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.actions import GroupAction
 from launch.actions import OpaqueFunction
 from launch.actions import SetLaunchConfiguration
 from launch.conditions import IfCondition
@@ -24,6 +25,7 @@ from launch.conditions import UnlessCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import LoadComposableNodes
+from launch_ros.actions import Node
 from launch_ros.descriptions import ComposableNode
 from launch_ros.parameter_descriptions import ParameterFile
 
@@ -133,30 +135,31 @@ def launch_setup(context, *args, **kwargs):
         condition=IfCondition(LaunchConfiguration("enable_image_decompressor")),
     )
 
-    fine_detector_loader = LoadComposableNodes(
-        composable_node_descriptions=[
-            ComposableNode(
-                package="traffic_light_fine_detector",
-                plugin="traffic_light::TrafficLightFineDetectorNodelet",
-                name="traffic_light_fine_detector",
-                namespace="detection",
-                parameters=[fine_detector_model_param],
-                remappings=[
-                    ("~/input/image", LaunchConfiguration("input/image")),
-                    ("~/input/rois", "rough/rois"),
-                    ("~/expect/rois", "expect/rois"),
-                    ("~/output/rois", LaunchConfiguration("output/rois")),
-                ],
-                extra_arguments=[
-                    {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
-                ],
-            ),
+    fine_detector_node = Node(
+        package="traffic_light_fine_detector",
+        executable="traffic_light_fine_detector_node",
+        name="traffic_light_fine_detector",
+        namespace="detection",
+        parameters=[fine_detector_model_param],
+        remappings=[
+            ("~/input/image", LaunchConfiguration("input/image")),
+            ("~/input/rois", "rough/rois"),
+            ("~/expect/rois", "expect/rois"),
+            ("~/output/rois", LaunchConfiguration("output/rois")),
         ],
-        target_container=container,
+        output="screen",
         condition=IfCondition(LaunchConfiguration("enable_fine_detection")),
+        prefix="konsole -e gdb -ex run --args",
+    )
+    group = GroupAction(
+        [
+            container,
+            decompressor_loader,
+            fine_detector_node,
+        ]
     )
 
-    return [container, decompressor_loader, fine_detector_loader]
+    return [group]
 
 
 def generate_launch_description():
