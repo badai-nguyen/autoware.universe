@@ -223,7 +223,16 @@ void TrafficLightFineDetectorNodelet::callback(
   std::vector<cv::Mat> color_masks = {
     cv::Mat(cv::Size(height, width), CV_8UC3, cv::Scalar(0, 0, 0))};
   trt_yolox_->doInference({original_image}, inference_results, masks, color_masks);
-  RCLCPP_INFO(this->get_logger(), "Inference results size: %ld", inference_results[0].size());
+  for (auto & detected_roi : inference_results[0]) {
+    // check type of detected roi
+    if (detected_roi.type != 8) {
+      continue;
+    }
+    cv::rectangle(
+      original_image, cv::Point(detected_roi.x_offset, detected_roi.y_offset),
+      cv::Point(detected_roi.x_offset + detected_roi.width, detected_roi.y_offset + detected_roi.height),
+      cv::Scalar(255, 0, 255), 3, 8, 0);
+  }
   // check if result is in rough roi
   for (auto & rough_roi : rough_roi_msg->rois) {
     // Convert unsigned integers to int to ensure signedness match
@@ -242,34 +251,34 @@ void TrafficLightFineDetectorNodelet::callback(
       cv::Point(rough_x_offset + rough_width, rough_y_offset + rough_height), cv::Scalar(0, 255, 0),
       3, 8, 0);
     // log rough roi
-    RCLCPP_INFO(
-      this->get_logger(), "Rough roi: %d, %d, %d, %d", rough_x_offset, rough_y_offset, rough_width,
-      rough_height);
+    // RCLCPP_INFO(
+    //   this->get_logger(), "Rough roi: %d, %d, %d, %d", rough_x_offset, rough_y_offset, rough_width,
+    //   rough_height);
     // log inference results size
 
-    for (auto & detected_roi : inference_results[0]) {
-      int detected_x_offset = static_cast<int>(detected_roi.x_offset);
-      int detected_y_offset = static_cast<int>(detected_roi.y_offset);
-      int detected_width = static_cast<int>(detected_roi.width);
-      int detected_height = static_cast<int>(detected_roi.height);
-      // Check if detected_roi is inside rough_roi
-      // log detected roi
-      RCLCPP_INFO(
-        this->get_logger(), "Detected roi: %d, %d, %d, %d", detected_x_offset, detected_y_offset,
-        detected_width, detected_height);
-      if (
-        rough_x_offset < detected_x_offset && rough_y_offset < detected_y_offset &&
-        rough_x_offset + rough_width > detected_x_offset + detected_width &&
-        rough_y_offset + rough_height > detected_y_offset + detected_height) {
-        id2detections[rough_roi.traffic_light_id].push_back(detected_roi);
-        // draw rectangle on input image
-        cv::rectangle(
-          original_image, cv::Point(detected_x_offset, detected_y_offset),
-          cv::Point(detected_x_offset + detected_width, detected_y_offset + detected_height),
-          cv::Scalar(255, 0, 255), 3, 8, 0);
-        // draw rough roi
-      }
-    }
+    // for (auto & detected_roi : inference_results[0]) {
+    //   int detected_x_offset = static_cast<int>(detected_roi.x_offset);
+    //   int detected_y_offset = static_cast<int>(detected_roi.y_offset);
+    //   int detected_width = static_cast<int>(detected_roi.width);
+    //   int detected_height = static_cast<int>(detected_roi.height);
+    //   // Check if detected_roi is inside rough_roi
+    //   // log detected roi
+    //   RCLCPP_INFO(
+    //     this->get_logger(), "Detected roi: %d, %d, %d, %d", detected_x_offset, detected_y_offset,
+    //     detected_width, detected_height);
+    //   if (
+    //     rough_x_offset < detected_x_offset && rough_y_offset < detected_y_offset &&
+    //     rough_x_offset + rough_width > detected_x_offset + detected_width &&
+    //     rough_y_offset + rough_height > detected_y_offset + detected_height) {
+    //     id2detections[rough_roi.traffic_light_id].push_back(detected_roi);
+    //     // draw rectangle on input image
+    //     cv::rectangle(
+    //       original_image, cv::Point(detected_x_offset, detected_y_offset),
+    //       cv::Point(detected_x_offset + detected_width, detected_y_offset + detected_height),
+    //       cv::Scalar(255, 0, 255), 3, 8, 0);
+    //     // draw rough roi
+    //   }
+    // }
   }
   // publish debug image
   // convert original_image to sensor_msgs::msg::Image
