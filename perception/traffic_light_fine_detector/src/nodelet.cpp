@@ -117,7 +117,7 @@ TrafficLightFineDetectorNodelet::TrafficLightFineDetectorNodelet(
   if (!readLabelFile(label_path, tlr_label_id_, num_class)) {
     RCLCPP_ERROR(this->get_logger(), "Could not find tlr id");
   }
-  const bool cuda_preprocess = true;
+  const bool cuda_preprocess = false;
   const std::string calib_image_list = "";
   const double scale = 1.0;
   const std::string cache_dir = "";
@@ -187,7 +187,7 @@ void TrafficLightFineDetectorNodelet::callback(
   using std::chrono::high_resolution_clock;
   using std::chrono::milliseconds;
   const auto exe_start_time = high_resolution_clock::now();
-  cv::Mat original_image;
+  cv::Mat pre_crop_image;
   TrafficLightRoiArray out_rois;
   std::map<int, TrafficLightRoi> id2expectRoi;
   std::map<int, tensorrt_yolox::ObjectArray> id2detections;
@@ -195,7 +195,21 @@ void TrafficLightFineDetectorNodelet::callback(
     id2expectRoi[expect_roi.traffic_light_id] = expect_roi;
   }
 
-  rosMsg2CvMat(in_image_msg, original_image, "bgr8");
+  rosMsg2CvMat(in_image_msg, pre_crop_image, "bgr8");
+  // center of pre_crop_image
+  int center_x = pre_crop_image.cols / 2;
+  int center_y = pre_crop_image.rows / 2;
+
+  // crop center of image into original_image
+  int crop_size_x = 1280;
+  int crop_size_y = 960;
+
+  int crop_top_left_x = center_x - crop_size_x / 2;
+  int crop_top_left_y = center_y - crop_size_y / 2;
+
+  cv::Mat original_image =
+    pre_crop_image(cv::Rect(crop_top_left_x, crop_top_left_y, crop_size_x, crop_size_y));
+
   std::vector<cv::Rect> rois;
   tensorrt_yolox::ObjectArrays inference_results;
   std::vector<cv::Point> lts;
@@ -209,32 +223,45 @@ void TrafficLightFineDetectorNodelet::callback(
   std::vector<cv::Mat> color_masks = {
     cv::Mat(cv::Size(height, width), CV_8UC3, cv::Scalar(0, 0, 0))};
   trt_yolox_->doInference({original_image}, inference_results, masks, color_masks);
+  RCLCPP_INFO(this->get_logger(), "Inference results size: %ld", inference_results[0].size());
   // check if result is in rough roi
   for (auto & rough_roi : rough_roi_msg->rois) {
     // Convert unsigned integers to int to ensure signedness match
-    int rough_x_offset = static_cast<int>(rough_roi.roi.x_offset);
-    int rough_y_offset = static_cast<int>(rough_roi.roi.y_offset);
+    int rough_x_offset = static_cast<int>(rough_roi.roi.x_offset) - crop_top_left_x;
+    int rough_y_offset = static_cast<int>(rough_roi.roi.y_offset) - crop_top_left_y;
     int rough_width = static_cast<int>(rough_roi.roi.width);
     int rough_height = static_cast<int>(rough_roi.roi.height);
+    // check the rough roi is in the image
+    if (
+      rough_x_offset < 0 || rough_y_offset < 0 || rough_x_offset + rough_width > width ||
+      rough_y_offset + rough_height > height) {
+      continue;
+    }
     cv::rectangle(
       original_image, cv::Point(rough_x_offset, rough_y_offset),
       cv::Point(rough_x_offset + rough_width, rough_y_offset + rough_height), cv::Scalar(0, 255, 0),
       3, 8, 0);
+    // log rough roi
+    RCLCPP_INFO(
+      this->get_logger(), "Rough roi: %d, %d, %d, %d", rough_x_offset, rough_y_offset, rough_width,
+      rough_height);
+    // log inference results size
+
     for (auto & detected_roi : inference_results[0]) {
       int detected_x_offset = static_cast<int>(detected_roi.x_offset);
       int detected_y_offset = static_cast<int>(detected_roi.y_offset);
       int detected_width = static_cast<int>(detected_roi.width);
       int detected_height = static_cast<int>(detected_roi.height);
       // Check if detected_roi is inside rough_roi
+      // log detected roi
+      RCLCPP_INFO(
+        this->get_logger(), "Detected roi: %d, %d, %d, %d", detected_x_offset, detected_y_offset,
+        detected_width, detected_height);
       if (
         rough_x_offset < detected_x_offset && rough_y_offset < detected_y_offset &&
         rough_x_offset + rough_width > detected_x_offset + detected_width &&
         rough_y_offset + rough_height > detected_y_offset + detected_height) {
         id2detections[rough_roi.traffic_light_id].push_back(detected_roi);
-        // RCLCPP_INFO(
-        //   this->get_logger(), "Detected traffic light in rough roi: %ld, detected_roi: %d, %d,
-        //   %d, %d", rough_roi.traffic_light_id, detected_x_offset, detected_y_offset,
-        //   detected_width, detected_height);
         // draw rectangle on input image
         cv::rectangle(
           original_image, cv::Point(detected_x_offset, detected_y_offset),
