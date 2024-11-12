@@ -65,7 +65,6 @@ TrtYoloXNode::TrtYoloXNode(const rclcpp::NodeOptions & node_options)
     RCLCPP_ERROR(this->get_logger(), "Could not find label file");
     rclcpp::shutdown();
   }
-
   is_roi_overlap_segment_ = declare_parameter<bool>("is_roi_overlap_segment");
   is_publish_color_mask_ = declare_parameter<bool>("is_publish_color_mask");
   overlap_roi_score_threshold_ = declare_parameter<float>("overlap_roi_score_threshold");
@@ -142,7 +141,7 @@ void TrtYoloXNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
 
   cv_bridge::CvImagePtr in_image_ptr;
   try {
-    in_image_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::BGR8);
+    in_image_ptr = cv_bridge::toCvCopy(msg, sensor_msgs::image_encodings::RGB8);
   } catch (cv_bridge::Exception & e) {
     RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
     return;
@@ -160,6 +159,31 @@ void TrtYoloXNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
     return;
   }
   auto & mask = masks.at(0);
+  // Refine mask: replacing segmentation mask by roi class
+  // This should remove when the segmentation accuracy is high
+  bool is_use_unknown_mask = true;
+  if (is_use_unknown_mask && trt_yolox_->getMultitaskNum() > 0) {
+    // add rois for unknown object into out_objects by using mask of unknown object
+    std::vector<std::vector<cv::Point>> contours;
+    cv::Mat binary;
+    cv::threshold(mask, binary, 0, 255, cv::THRESH_BINARY);
+    cv::resize(
+      binary, binary, cv::Size(in_image_ptr->image.cols, in_image_ptr->image.rows), 0, 0,
+      cv::INTER_NEAREST);
+    cv::findContours(binary, contours, cv::RETR_EXTERNAL, cv::CHAIN_APPROX_SIMPLE);
+    for (const auto & contour : contours) {
+      cv::Rect roi = cv::boundingRect(contour);
+      tensorrt_yolox::Object object;
+      object.x_offset = roi.x;
+      object.y_offset = roi.y;
+      object.width = roi.width;
+      object.height = roi.height;
+      object.score = 1.0;
+      object.type = 0;
+      objects.at(0).push_back(object);
+    }
+
+  }
 
   for (const auto & yolox_object : objects.at(0)) {
     tier4_perception_msgs::msg::DetectedObjectWithFeature object;
@@ -178,10 +202,8 @@ void TrtYoloXNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
     const auto bottom =
       std::min(static_cast<int>(object.feature.roi.y_offset + object.feature.roi.height), height);
     cv::rectangle(
-      in_image_ptr->image, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(0, 0, 255), 3,
+      in_image_ptr->image, cv::Point(left, top), cv::Point(right, bottom), cv::Scalar(255, 0, 0), 3,
       8, 0);
-    // Refine mask: replacing segmentation mask by roi class
-    // This should remove when the segmentation accuracy is high
     if (is_roi_overlap_segment_ && trt_yolox_->getMultitaskNum() > 0) {
       overlapSegmentByRoi(yolox_object, mask, width, height);
     }
