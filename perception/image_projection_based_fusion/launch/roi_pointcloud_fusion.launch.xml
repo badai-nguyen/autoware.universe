@@ -16,7 +16,7 @@
   <arg name="input/camera_info6" default="/camera_info6"/>
   <arg name="input/rois7" default="rois7"/>
   <arg name="input/camera_info7" default="/camera_info7"/>
-  <arg name="input/pointcloud" default="/perception/object_recognition/detection/pointcloud_map_filtered/pointcloud"/>
+  <arg name="input/pointcloud" default="/perception/obstacle_segmentation/pointcloud"/>
   <arg name="output/pointcloud" default="roi_pointcloud_fusion/output/pointcloud"/>
   <arg name="output_clusters" default="output_clusters"/>
   <arg name="debug/clusters" default="roi_pointcloud_fusion/debug/clusters"/>
