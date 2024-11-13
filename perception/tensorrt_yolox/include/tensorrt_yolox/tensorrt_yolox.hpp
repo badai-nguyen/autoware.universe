@@ -114,7 +114,7 @@ public:
    * @param[in] rois region of interest for inference
    */
   bool doInferenceWithRoi(
-    const std::vector<cv::Mat> & images, ObjectArrays & objects, const std::vector<cv::Rect> & roi);
+    const std::vector<cv::Mat> & images, ObjectArrays & objects, std::vector<cv::Mat> & masks, std::vector<cv::Mat> & color_masks, const std::vector<cv::Rect> & roi);
 
   /**
    * @brief run multi-scale inference including pre-process and post-process
@@ -206,6 +206,8 @@ private:
     const std::vector<cv::Mat> & images, ObjectArrays & objects, std::vector<cv::Mat> & masks,
     std::vector<cv::Mat> & color_masks);
   void decodeOutputs(float * prob, ObjectArray & objects, float scale, cv::Size & img_size) const;
+  // void decodeSegMaskOutputs(
+  //   float * prob, float scale, cv::Size & img_size, std::vector<cv::Mat> & masks) const;
   void generateGridsAndStride(
     const int target_w, const int target_h, const std::vector<int> & strides,
     std::vector<GridAndStride> & grid_strides) const;

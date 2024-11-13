@@ -102,7 +102,8 @@ TrafficLightFineDetectorNodelet::TrafficLightFineDetectorNodelet(
     ("If true, profiler function will be enabled. "
      "Since the profile function may affect execution speed, it is recommended "
      "to set this flag true only for development purpose."));
-
+  const bool preprocess_on_gpu = declare_parameter_with_description(
+    "preprocess_on_gpu", true, "If true, pre-processing is performed on GPU");
   tensorrt_common::BuildConfig build_config(
     calibration_algorithm, dla_core_id, quantize_first_layer, quantize_last_layer,
     profile_per_layer, clip_value);
@@ -117,7 +118,7 @@ TrafficLightFineDetectorNodelet::TrafficLightFineDetectorNodelet(
   if (!readLabelFile(label_path, tlr_label_id_, num_class)) {
     RCLCPP_ERROR(this->get_logger(), "Could not find tlr id");
   }
-  const bool cuda_preprocess = false;
+  // const bool cuda_preprocess = true;
   const std::string calib_image_list = "";
   const double scale = 1.0;
   const std::string cache_dir = "";
@@ -127,7 +128,7 @@ TrafficLightFineDetectorNodelet::TrafficLightFineDetectorNodelet(
   const tensorrt_common::BatchConfig batch_config{batch_size_, batch_size_, batch_size_};
 
   trt_yolox_ = std::make_unique<tensorrt_yolox::TrtYoloX>(
-    model_path, precision, num_class, score_thresh_, nms_threshold, build_config, cuda_preprocess,
+    model_path, precision, num_class, score_thresh_, nms_threshold, build_config, preprocess_on_gpu,
     calib_image_list, scale, cache_dir, batch_config);
   // trt_yolox_ = std::make_unique<tensorrt_yolox::TrtYoloX>(
   //   model_path, precision, num_class., score_threshold, nms_threshold, build_config,
@@ -216,7 +217,6 @@ void TrafficLightFineDetectorNodelet::callback(
     rough_y_offset_min = std::min(rough_y_offset_min, rough_y_offset);
     rough_x_offset_max = std::max(rough_x_offset_max, rough_x_offset + rough_width);
     rough_y_offset_max = std::max(rough_y_offset_max, rough_y_offset + rough_height);
-
   }
 
   // center of pre_crop_image
@@ -233,83 +233,43 @@ void TrafficLightFineDetectorNodelet::callback(
   crop_size_x = std::min(crop_size_x, pre_crop_image.cols - crop_top_left_x);
   crop_size_y = std::min(crop_size_y, pre_crop_image.rows - crop_top_left_y);
 
-  cv::Mat original_image =
-    pre_crop_image(cv::Rect(crop_top_left_x, crop_top_left_y, crop_size_x, crop_size_y));
-
-  std::vector<cv::Rect> rois;
+  // cv::Mat original_image =
+  //   pre_crop_image(cv::Rect(crop_top_left_x, crop_top_left_y, crop_size_x, crop_size_y));
+  cv::Rect crop_roi(crop_top_left_x, crop_top_left_y, crop_size_x, crop_size_y);
+  // std::vector<cv::Rect> rois;
   tensorrt_yolox::ObjectArrays inference_results;
-  std::vector<cv::Point> lts;
-  std::vector<size_t> roi_ids;
+  // std::vector<cv::Point> lts;
+  // std::vector<size_t> roi_ids;
 
-  // replace with new yolox inference
-  // tensorrt_yolox::ObjectArrays objects
-  auto height = original_image.rows;
-  auto width = original_image.cols;
-  std::vector<cv::Mat> masks = {cv::Mat(cv::Size(height, width), CV_8UC1, cv::Scalar(0))};
-  std::vector<cv::Mat> color_masks = {
-    cv::Mat(cv::Size(height, width), CV_8UC3, cv::Scalar(0, 0, 0))};
-  trt_yolox_->doInference({original_image}, inference_results, masks, color_masks);
-  for (auto & detected_roi : inference_results[0]) {
-    // check type of detected roi
-    if (detected_roi.type != 8) {
-      continue;
-    }
-    cv::rectangle(
-      original_image, cv::Point(detected_roi.x_offset, detected_roi.y_offset),
-      cv::Point(detected_roi.x_offset + detected_roi.width, detected_roi.y_offset + detected_roi.height),
-      cv::Scalar(255, 0, 255), 3, 8, 0);
-  }
-  // check if result is in rough roi
-  for (auto & rough_roi : rough_roi_msg->rois) {
-    // Convert unsigned integers to int to ensure signedness match
-    int rough_x_offset = static_cast<int>(rough_roi.roi.x_offset) - crop_top_left_x;
-    int rough_y_offset = static_cast<int>(rough_roi.roi.y_offset) - crop_top_left_y;
-    int rough_width = static_cast<int>(rough_roi.roi.width);
-    int rough_height = static_cast<int>(rough_roi.roi.height);
-    // check the rough roi is in the image
-    if (
-      rough_x_offset < 0 || rough_y_offset < 0 || rough_x_offset + rough_width > width ||
-      rough_y_offset + rough_height > height) {
-      continue;
-    }
-    cv::rectangle(
-      original_image, cv::Point(rough_x_offset, rough_y_offset),
-      cv::Point(rough_x_offset + rough_width, rough_y_offset + rough_height), cv::Scalar(0, 255, 0),
-      3, 8, 0);
-    // log rough roi
-    // RCLCPP_INFO(
-    //   this->get_logger(), "Rough roi: %d, %d, %d, %d", rough_x_offset, rough_y_offset, rough_width,
-    //   rough_height);
-    // log inference results size
-
-    // for (auto & detected_roi : inference_results[0]) {
-    //   int detected_x_offset = static_cast<int>(detected_roi.x_offset);
-    //   int detected_y_offset = static_cast<int>(detected_roi.y_offset);
-    //   int detected_width = static_cast<int>(detected_roi.width);
-    //   int detected_height = static_cast<int>(detected_roi.height);
-    //   // Check if detected_roi is inside rough_roi
-    //   // log detected roi
-    //   RCLCPP_INFO(
-    //     this->get_logger(), "Detected roi: %d, %d, %d, %d", detected_x_offset, detected_y_offset,
-    //     detected_width, detected_height);
-    //   if (
-    //     rough_x_offset < detected_x_offset && rough_y_offset < detected_y_offset &&
-    //     rough_x_offset + rough_width > detected_x_offset + detected_width &&
-    //     rough_y_offset + rough_height > detected_y_offset + detected_height) {
-    //     id2detections[rough_roi.traffic_light_id].push_back(detected_roi);
-    //     // draw rectangle on input image
-    //     cv::rectangle(
-    //       original_image, cv::Point(detected_x_offset, detected_y_offset),
-    //       cv::Point(detected_x_offset + detected_width, detected_y_offset + detected_height),
-    //       cv::Scalar(255, 0, 255), 3, 8, 0);
-    //     // draw rough roi
-    //   }
-    // }
-  }
+  trt_yolox_->doInferenceWithRoi({pre_crop_image}, inference_results, masks, color_masks, {crop_roi});
+  // output size of inference_results
+  // std::cout << "inference_results size: " << inference_results.size() << std::endl;
+  // for (auto & detected_roi : inference_results[0]) {
+  //   // check type of detected roi
+  //   if (detected_roi.type != 8) {
+  //     continue;
+  //   }
+  //   cv::rectangle(
+  //     pre_crop_image, cv::Point(detected_roi.x_offset, detected_roi.y_offset),
+  //     cv::Point(detected_roi.x_offset + detected_roi.width, detected_roi.y_offset + detected_roi.height),
+  //     cv::Scalar(255, 0, 255), 3, 8, 0);
+  // }
+  // // check if result is in rough roi
+  // for (auto & rough_roi : rough_roi_msg->rois) {
+  //   // Convert unsigned integers to int to ensure signedness match
+  //   int rough_x_offset = static_cast<int>(rough_roi.roi.x_offset);
+  //   int rough_y_offset = static_cast<int>(rough_roi.roi.y_offset);
+  //   int rough_width = static_cast<int>(rough_roi.roi.width);
+  //   int rough_height = static_cast<int>(rough_roi.roi.height);
+  //   cv::rectangle(
+  //     pre_crop_image, cv::Point(rough_x_offset, rough_y_offset),
+  //     cv::Point(rough_x_offset + rough_width, rough_y_offset + rough_height), cv::Scalar(0, 255, 0),
+  //     3, 8, 0);
+  // }
   // publish debug image
   // convert original_image to sensor_msgs::msg::Image
   cv_bridge::CvImage cv_image;
-  cv_image.image = original_image;
+  cv_image.image = pre_crop_image;
   cv_image.encoding = "bgr8";
   cv_image.header = in_image_msg->header;
   image_pub_.publish(cv_image.toImageMsg());

@@ -25,6 +25,8 @@
 #include <utility>
 #include <vector>
 
+#include <iostream>
+#include <random>
 namespace tensorrt_yolox
 {
 TrtYoloXNode::TrtYoloXNode(const rclcpp::NodeOptions & node_options)
@@ -182,10 +184,30 @@ void TrtYoloXNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
   const auto height = in_image_ptr->image.rows;
 
   tensorrt_yolox::ObjectArrays objects;
-  std::vector<cv::Mat> masks = {cv::Mat(cv::Size(height, width), CV_8UC1, cv::Scalar(0))};
-  std::vector<cv::Mat> color_masks = {
-    cv::Mat(cv::Size(height, width), CV_8UC3, cv::Scalar(0, 0, 0))};
+  const int x_center = width / 2;
+  const int y_center = height / 2;
+  int min = 10; // Set minimum value
+  int max = 50; // Set maximum value
 
+  // Ensure min is less than max
+  if (min > max) std::swap(min, max);
+
+  // Seed and generator setup
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  std::uniform_int_distribution<> dist(min, max);
+
+  // Generate a random integer in the range [min, max]
+  int random_num = dist(gen);
+  const int crop_size_x = 640 + random_num;
+  const int crop_size_y = 480 + random_num;
+  cv::Rect crop_roi(x_center - crop_size_x / 2, y_center - crop_size_y / 2, crop_size_x, crop_size_y);
+  cv::Mat cropped_image = in_image_ptr->image(crop_roi);
+  std::vector<cv::Mat> masks = {cv::Mat(cv::Size(crop_size_y, crop_size_x), CV_8UC1, cv::Scalar(0))};
+  std::vector<cv::Mat> color_masks = {
+    cv::Mat(cv::Size(crop_size_y, crop_size_x), CV_8UC3, cv::Scalar(0, 0, 0))};
+
+  // if (!trt_yolox_->doInference({in_image_ptr->image}, objects, masks, color_masks, {crop_roi})) {
   if (!trt_yolox_->doInference({in_image_ptr->image}, objects, masks, color_masks)) {
     RCLCPP_WARN(this->get_logger(), "Fail to inference");
     return;
@@ -215,12 +237,12 @@ void TrtYoloXNode::onImage(const sensor_msgs::msg::Image::ConstSharedPtr msg)
       object_recognition_utils::toObjectClassifications(label_map_[yolox_object.type], 1.0f);
     out_objects.feature_objects.push_back(object);
     if (yolox_object.type == 8) {
-      const auto left = std::max(0, static_cast<int>(object.feature.roi.x_offset));
-      const auto top = std::max(0, static_cast<int>(object.feature.roi.y_offset));
+      const auto left = std::max(0, static_cast<int>(object.feature.roi.x_offset)) + x_center - crop_size_x / 2;
+      const auto top = std::max(0, static_cast<int>(object.feature.roi.y_offset)) + y_center - crop_size_y / 2;
       const auto right =
-        std::min(static_cast<int>(object.feature.roi.x_offset + object.feature.roi.width), width);
+        std::min(static_cast<int>(object.feature.roi.x_offset + x_center - crop_size_x / 2 + object.feature.roi.width), width);
       const auto bottom =
-        std::min(static_cast<int>(object.feature.roi.y_offset + object.feature.roi.height), height);
+        std::min(static_cast<int>(object.feature.roi.y_offset + y_center - crop_size_y / 2 + object.feature.roi.height), height);
       cv::rectangle(
         in_image_ptr->image, cv::Point(left, top), cv::Point(right, bottom),
         objects_cl_map_.at(yolox_object.type), 3, 8, 0);

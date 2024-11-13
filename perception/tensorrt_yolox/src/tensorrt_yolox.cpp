@@ -571,8 +571,17 @@ void TrtYoloX::preprocessWithRoiGpu(
 {
   const auto batch_size = images.size();
   auto input_dims = trt_common_->getBindingDimensions(0);
+  std::cout << "input_dims.nbDims: " << input_dims.nbDims << std::endl;
 
   input_dims.d[0] = batch_size;
+
+  float input_height = static_cast<float>(input_dims.d[2]);
+  float input_width = static_cast<float>(input_dims.d[3]);
+  std::cout << "input_width gpu: " << input_width << ", input_height gpu: " << input_height << std::endl;
+  // log rois[0] size 
+  std::cout << "rois[0].width gpu: " << rois[0].width << ", rois[0].height gpu: " << rois[0].height << std::endl;
+  // log rois[0] position
+  std::cout << "rois[0].x gpu: " << rois[0].x << ", rois[0].y gpu: " << rois[0].y << std::endl;
   for (const auto & image : images) {
     // if size of source input has been changed...
     int width = image.cols;
@@ -594,8 +603,8 @@ void TrtYoloX::preprocessWithRoiGpu(
   if (!image_buf_h_) {
     trt_common_->setBindingDimensions(0, input_dims);
   }
-  const float input_height = static_cast<float>(input_dims.d[2]);
-  const float input_width = static_cast<float>(input_dims.d[3]);
+  // const float input_height = static_cast<float>(input_dims.d[2]);
+  // const float input_width = static_cast<float>(input_dims.d[3]);
   int b = 0;
   scales_.clear();
 
@@ -645,10 +654,22 @@ void TrtYoloX::preprocessWithRoi(
 {
   const auto batch_size = images.size();
   auto input_dims = trt_common_->getBindingDimensions(0);
+  std::cout << "input_dims.nbDims: " << input_dims.nbDims << std::endl;
+  // check size of input_dims
+  if (input_dims.nbDims == 0) {
+    std::cout << "input_dims.nbDims : " << input_dims.nbDims << std::endl;
+    return;
+  }
   input_dims.d[0] = batch_size;
   trt_common_->setBindingDimensions(0, input_dims);
-  const float input_height = static_cast<float>(input_dims.d[2]);
-  const float input_width = static_cast<float>(input_dims.d[3]);
+  float input_height = static_cast<float>(input_dims.d[2]);
+  float input_width = static_cast<float>(input_dims.d[3]);
+  std::cout << "input_width: " << input_width << ", input_height: " << input_height << std::endl;
+  // log rois[0] size 
+  std::cout << "rois[0].width: " << rois[0].width << ", rois[0].height: " << rois[0].height << std::endl;
+  // log rois[0] position
+  std::cout << "rois[0].x: " << rois[0].x << ", rois[0].y: " << rois[0].y << std::endl;
+
   std::vector<cv::Mat> dst_images;
   scales_.clear();
   bool letterbox = true;
@@ -798,10 +819,13 @@ void TrtYoloX::multiScalePreprocess(const cv::Mat & image, const std::vector<cv:
 }
 
 bool TrtYoloX::doInferenceWithRoi(
-  const std::vector<cv::Mat> & images, ObjectArrays & objects, const std::vector<cv::Rect> & rois)
+  const std::vector<cv::Mat> & images,[[maybe_unused]] ObjectArrays & objects, [[maybe_unused]] std::vector<cv::Mat> & masks,[[maybe_unused]] std::vector<cv::Mat> & color_masks, const std::vector<cv::Rect> & rois)
 {
-  std::vector<cv::Mat> masks;
-  std::vector<cv::Mat> color_masks;
+  // std::vector<cv::Mat> masks;
+  // std::vector<cv::Mat> color_masks;
+  // std::vector<cv::Mat> masks = {cv::Mat(cv::Size(rois[0].height, rois[0].width), CV_8UC1, cv::Scalar(0))};
+  // std::vector<cv::Mat> color_masks = {
+  //   cv::Mat(cv::Size(rois[0].height, rois[0].width), CV_8UC3, cv::Scalar(0, 0, 0))};
   if (!trt_common_->isInitialized()) {
     return false;
   }
@@ -932,11 +956,15 @@ bool TrtYoloX::feedforwardAndDecode(
         size_t out_elem_num = std::accumulate(
           output_dims.d + 1, output_dims.d + output_dims.nbDims, 1, std::multiplies<int>());
         out_elem_num = out_elem_num * batch;
-        const float scale = std::min(
+        float scale = scales_[i];
+        if (scales_[i] == -1){
+          scale = std::min(
           output_dims.d[3] / static_cast<float>(image_size.width),
           output_dims.d[2] / static_cast<float>(image_size.height));
-        int out_w = static_cast<int>(image_size.width * scale);
-        int out_h = static_cast<int>(image_size.height * scale);
+        }
+        std::cout << "scale: " << scale << std::endl;
+        int out_w = static_cast<int>(image_size.width / scale);
+        int out_h = static_cast<int>(image_size.height / scale);
         cv::Mat mask;
         if (use_gpu_preprocess_) {
           float * d_segmentation_results =
@@ -959,6 +987,14 @@ bool TrtYoloX::feedforwardAndDecode(
   return true;
 }
 
+// void TrtYoloX::decodeSegMaskOutputs(
+//     float * prob, float scale, cv::Size & img_size, std::vector<cv::Mat> & masks)
+// {
+//   (void)prob;
+//   (void)scale;
+//   (void)img_size;
+//   (void)masks;
+// }
 // This method is assumed to be called when specified YOLOX model contains
 // EfficientNMS_TRT module.
 bool TrtYoloX::multiScaleFeedforward(const cv::Mat & image, int batch_size, ObjectArrays & objects)
@@ -1232,13 +1268,20 @@ cv::Mat TrtYoloX::getMaskImageGpu(float * d_prob, nvinfer1::Dims dims, int out_w
   int width = dims.d[3];
   cv::Mat mask = cv::Mat::zeros(out_h, out_w, CV_8UC1);
   int index = b * out_w * out_h;
+  // debug argmax_buf_d_ size
+  std::cout << "argmax_buf_d_ size: " << sizeof(unsigned char) * 1 * out_w * out_h << std::endl;
   argmax_gpu(
     (unsigned char *)argmax_buf_d_.get() + index, d_prob, out_w, out_h, width, height, classes, 1,
     *stream_);
+  // logging argmax_buf_d_ size
+
   CHECK_CUDA_ERROR(cudaMemcpyAsync(
     argmax_buf_h_.get(), argmax_buf_d_.get(), sizeof(unsigned char) * 1 * out_w * out_h,
     cudaMemcpyDeviceToHost, *stream_));
+  
   cudaStreamSynchronize(*stream_);
+  // logging size of mask data
+  // std::cout << "mask data size: " << mask. << std::endl;
   std::memcpy(mask.data, argmax_buf_h_.get() + index, sizeof(unsigned char) * 1 * out_w * out_h);
   return mask;
 }
