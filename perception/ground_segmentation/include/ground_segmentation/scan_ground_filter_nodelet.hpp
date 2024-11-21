@@ -222,7 +222,7 @@ private:
     pcl::PointIndices & out_no_ground_indices);
   void classifyPointCloudGridScan(
     std::vector<PointCloudRefVector> & in_radial_ordered_clouds,
-    pcl::PointIndices & out_no_ground_indices);
+    pcl::PointIndices & out_no_ground_indices, pcl::PointIndices & out_ground_indices);
   /*!
    * Re-classifies point of ground cluster based on their height
    * @param gnd_cluster Input ground cluster for re-checking
@@ -241,8 +241,14 @@ private:
    */
   void extractObjectPoints(
     const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, const pcl::PointIndices & in_indices,
-    pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr);
+    pcl::PointCloud<pcl::PointXYZI>::Ptr out_object_cloud_ptr, const uint32_t entity_id);
 
+  /*!
+   * \brief Add point entity field into pointcloud
+   * @param in_cloud_ptr Input PointCloud to add entity_id field
+   */
+  void convertXYZItoXYZE(
+    const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, PointCloud2 & out_cloud);
   /** \brief Parameter service callback result : needed to be hold */
   OnSetParametersCallbackHandle::SharedPtr set_param_res_;
 
@@ -253,6 +259,9 @@ private:
   std::unique_ptr<tier4_autoware_utils::StopWatch<std::chrono::milliseconds>> stop_watch_ptr_{
     nullptr};
   std::unique_ptr<tier4_autoware_utils::DebugPublisher> debug_publisher_ptr_{nullptr};
+
+  // publish debug pointcloud
+  rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr debug_groundtruth_pc_pub_;
 
 public:
   EIGEN_MAKE_ALIGNED_OPERATOR_NEW

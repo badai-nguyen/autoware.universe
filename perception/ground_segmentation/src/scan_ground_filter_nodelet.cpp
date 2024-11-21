@@ -77,6 +77,9 @@ ScanGroundFilterComponent::ScanGroundFilterComponent(const rclcpp::NodeOptions &
     stop_watch_ptr_->tic("cyclic_time");
     stop_watch_ptr_->tic("processing_time");
   }
+  // create publisher for debug groundtruth pointcloud
+  debug_groundtruth_pc_pub_ = this->create_publisher<sensor_msgs::msg::PointCloud2>(
+    "/sensing/lidar/concatenated/pointcloud_gt", 1);
 }
 
 void ScanGroundFilterComponent::convertPointcloudGridScan(
@@ -285,9 +288,10 @@ void ScanGroundFilterComponent::recheckGroundCluster(
 }
 void ScanGroundFilterComponent::classifyPointCloudGridScan(
   std::vector<PointCloudRefVector> & in_radial_ordered_clouds,
-  pcl::PointIndices & out_no_ground_indices)
+  pcl::PointIndices & out_no_ground_indices, pcl::PointIndices & out_ground_indices)
 {
   out_no_ground_indices.indices.clear();
+  out_ground_indices.indices.clear();
   for (size_t i = 0; i < in_radial_ordered_clouds.size(); ++i) {
     PointsCentroid ground_cluster;
     ground_cluster.initialize();
@@ -407,6 +411,7 @@ void ScanGroundFilterComponent::classifyPointCloudGridScan(
         out_no_ground_indices.indices.push_back(p->orig_index);
       } else if (p->point_state == PointLabel::GROUND) {
         ground_cluster.addPoint(p->radius, p->orig_point->z, p->orig_index);
+        out_ground_indices.indices.push_back(p->orig_index);
       }
       prev_p = p;
     }
@@ -530,10 +535,60 @@ void ScanGroundFilterComponent::classifyPointCloud(
 
 void ScanGroundFilterComponent::extractObjectPoints(
   const pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud_ptr, const pcl::PointIndices & in_indices,
-  pcl::PointCloud<pcl::PointXYZ>::Ptr out_object_cloud_ptr)
+  pcl::PointCloud<pcl::PointXYZI>::Ptr out_object_cloud_ptr, const uint32_t entity_id)
 {
   for (const auto & i : in_indices.indices) {
-    out_object_cloud_ptr->points.emplace_back(in_cloud_ptr->points[i]);
+    pcl::PointXYZI point;
+    point.x = in_cloud_ptr->points[i].x;
+    point.y = in_cloud_ptr->points[i].y;
+    point.z = in_cloud_ptr->points[i].z;
+    point.intensity = static_cast<float>(entity_id);
+    out_object_cloud_ptr->points.emplace_back(point);
+  }
+}
+roundFilterComponent::convertXYZItoXYZE(
+  const pcl::PointCloud<pcl::PointXYZI>::Ptr in_cloud_ptr, PointCloud2 & out_cloud)
+{
+  out_cloud.fields.resize(5);
+  out_cloud.fields[0].name = "x";
+  out_cloud.fields[0].offset = 0;
+  out_cloud.fields[0].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  out_cloud.fields[0].count = 1;
+  out_cloud.fields[1].name = "y";
+  out_cloud.fields[1].offset = 4;
+  out_cloud.fields[1].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  out_cloud.fields[1].count = 1;
+  out_cloud.fields[2].name = "z";
+  out_cloud.fields[2].offset = 8;
+  out_cloud.fields[2].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  out_cloud.fields[2].count = 1;
+  out_cloud.fields[3].name = "entity_id";
+  out_cloud.fields[3].offset = 12;
+  out_cloud.fields[3].datatype = sensor_msgs::msg::PointField::INT32;
+  out_cloud.fields[3].count = 1;
+  out_cloud.fields[4].name = "intensity";
+  out_cloud.fields[4].offset = 16;
+  out_cloud.fields[4].datatype = sensor_msgs::msg::PointField::FLOAT32;
+  out_cloud.fields[4].count = 1;
+
+  out_cloud.point_step = 20;
+  out_cloud.data.resize(in_cloud_ptr->points.size() * out_cloud.point_step);
+  out_cloud.width = in_cloud_ptr->points.size();
+  out_cloud.height = 1;
+  out_cloud.is_bigendian = false;
+  out_cloud.is_dense = true;
+  int32_t entity_id = 0;
+  float intensity = 0.0;
+  for (size_t i = 0; i < in_cloud_ptr->points.size(); ++i) {
+    std::memcpy(
+      &out_cloud.data[i * out_cloud.point_step + 0], &in_cloud_ptr->points[i].x, sizeof(float));
+    std::memcpy(
+      &out_cloud.data[i * out_cloud.point_step + 4], &in_cloud_ptr->points[i].y, sizeof(float));
+    std::memcpy(
+      &out_cloud.data[i * out_cloud.point_step + 8], &in_cloud_ptr->points[i].z, sizeof(float));
+    entity_id = static_cast<int32_t>(in_cloud_ptr->points[i].intensity);
+    std::memcpy(&out_cloud.data[i * out_cloud.point_step + 12], &entity_id, sizeof(int32_t));
+    std::memcpy(&out_cloud.data[i * out_cloud.point_step + 16], &intensity, sizeof(float));
   }
 }
 
@@ -549,24 +604,34 @@ void ScanGroundFilterComponent::filter(
   std::vector<PointCloudRefVector> radial_ordered_points;
 
   pcl::PointIndices no_ground_indices;
-  pcl::PointCloud<pcl::PointXYZ>::Ptr no_ground_cloud_ptr(new pcl::PointCloud<pcl::PointXYZ>);
+  pcl::PointIndices ground_indices;
+  pcl::PointCloud<pcl::PointXYZI>::Ptr no_ground_cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
+  pcl::PointCloud<pcl::PointXYZI>::Ptr groundtruth_cloud_ptr(new pcl::PointCloud<pcl::PointXYZI>);
   no_ground_cloud_ptr->points.reserve(current_sensor_cloud_ptr->points.size());
+  groundtruth_cloud_ptr->points.reserve(current_sensor_cloud_ptr->points.size());
 
   if (elevation_grid_mode_) {
     convertPointcloudGridScan(current_sensor_cloud_ptr, radial_ordered_points);
-    classifyPointCloudGridScan(radial_ordered_points, no_ground_indices);
-  } else {
-    convertPointcloud(current_sensor_cloud_ptr, radial_ordered_points);
-    classifyPointCloud(radial_ordered_points, no_ground_indices);
+    classifyPointCloudGridScan(radial_ordered_points, no_ground_indices, ground_indices);
   }
 
-  extractObjectPoints(current_sensor_cloud_ptr, no_ground_indices, no_ground_cloud_ptr);
+  extractObjectPoints(current_sensor_cloud_ptr, no_ground_indices, no_ground_cloud_ptr, 0);
+  extractObjectPoints(current_sensor_cloud_ptr, ground_indices, groundtruth_cloud_ptr, 1);
+  // concat with no_ground_cloud groundtruh
+  for (const auto & point : no_ground_cloud_ptr->points) {
+    groundtruth_cloud_ptr->points.emplace_back(point);
+  }
 
   auto no_ground_cloud_msg_ptr = std::make_shared<PointCloud2>();
   pcl::toROSMsg(*no_ground_cloud_ptr, *no_ground_cloud_msg_ptr);
 
   no_ground_cloud_msg_ptr->header = input->header;
   output = *no_ground_cloud_msg_ptr;
+
+  PointCloud2 groundtruth_cloud_msg;
+  convertXYZItoXYZE(groundtruth_cloud_ptr, groundtruth_cloud_msg);
+  groundtruth_cloud_msg.header = input->header;
+  debug_groundtruth_pc_pub_->publish(groundtruth_cloud_msg);
 
   if (debug_publisher_ptr_ && stop_watch_ptr_) {
     const double cyclic_time_ms = stop_watch_ptr_->toc("cyclic_time", true);
