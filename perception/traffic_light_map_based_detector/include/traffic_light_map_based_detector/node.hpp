@@ -22,6 +22,7 @@
 #include <autoware_planning_msgs/msg/lanelet_route.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
+#include <tier4_debug_msgs/msg/float32_stamped.hpp>
 #include <tier4_perception_msgs/msg/traffic_light_roi_array.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -86,6 +87,8 @@ private:
    */
   rclcpp::Publisher<tier4_perception_msgs::msg::TrafficLightRoiArray>::SharedPtr expect_roi_pub_;
   rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr viz_pub_;
+  // publish a Float32Stamped value for the distance range
+  rclcpp::Publisher<tier4_debug_msgs::msg::Float32Stamped>::SharedPtr distance_range_pub_;
 
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
@@ -94,6 +97,7 @@ private:
 
   std::shared_ptr<TrafficLightSet> all_traffic_lights_ptr_;
   std::shared_ptr<TrafficLightSet> route_traffic_lights_ptr_;
+  mutable double distance_range_{300.0};
 
   std::set<int64_t> pedestrian_tl_id_;
 
