@@ -36,8 +36,7 @@ RoiBasedDetectorNode::RoiBasedDetectorNode(const rclcpp::NodeOptions & node_opti
   // create publisher
   rois_pub_ = this->create_publisher<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
     "output_rois", 1);
-  objects_pub_ =
-    this->create_publisher<autoware_perception_msgs::msg::DetectedObjects>("output_objects", 1);
+  objects_pub_ = this->create_publisher<DetectedObjects>("output_objects", 1);
   // create subscriber
   roi_sub_ = this->create_subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>(
     "input_rois", 1, std::bind(&RoiBasedDetectorNode::roiCallback, this, std::placeholders::_1));
@@ -45,7 +44,7 @@ RoiBasedDetectorNode::RoiBasedDetectorNode(const rclcpp::NodeOptions & node_opti
   camera_info_sub_ = this->create_subscription<sensor_msgs::msg::CameraInfo>(
     "input_camera_info", rclcpp::QoS(10).reliability(rclcpp::ReliabilityPolicy::BestEffort),
     std::bind(&RoiBasedDetectorNode::cameraInfoCallback, this, std::placeholders::_1));
-  transform_listener_ = std::make_shared<autoware::universe_utils::TransformListener>(this);
+  transform_listener_ = std::make_shared<TransformListener>(this);
 }
 
 Eigen::Matrix4d RoiBasedDetectorNode::transformToHomogeneous(
@@ -98,7 +97,7 @@ void RoiBasedDetectorNode::roiCallback(
   // const double cx = camera_info_.k[2];
   // const double cy = camera_info_.k[5];
 
-  autoware_perception_msgs::msg::DetectedObjects objects;
+  DetectedObjects objects;
 
   // get transform from camera frame to base_link frame
 
@@ -126,28 +125,33 @@ void RoiBasedDetectorNode::roiCallback(
   Eigen::Matrix4f camera2lidar_mul_inv_projection = transform_matrix_cam2base * inv_project;
 
   for (const auto & obj_with_feature : msg->feature_objects) {
-    autoware_perception_msgs::msg::DetectedObject object;
+    DetectedObject object;
     object.classification.push_back(obj_with_feature.object.classification.front());
     // object.classification.front().label = obj_with_feature.object.classification.front().label;
     object.existence_probability = obj_with_feature.object.existence_probability;
 
-    const double normalized_projected_x = static_cast<double>(obj_with_feature.feature.roi.x_offset);
-    const double normalized_projected_y = static_cast<double>(obj_with_feature.feature.roi.y_offset);
+    const double normalized_projected_x =
+      static_cast<double>(obj_with_feature.feature.roi.x_offset);
+    const double normalized_projected_y =
+      static_cast<double>(obj_with_feature.feature.roi.y_offset);
     // auto projected_point_z_inv = (camera2lidar_mul_inv_projection(3,0)*normalized_projected_x +
     // camera2lidar_mul_inv_projection(3,1)*normalized_projected_y +
     // camera2lidar_mul_inv_projection(3,2))/(1.0 - camera2lidar_mul_inv_projection(3,3));
     auto w_div_projected_z = -(camera2lidar_mul_inv_projection(2, 0) * normalized_projected_x +
-                              camera2lidar_mul_inv_projection(2, 1) * normalized_projected_y +
-                              camera2lidar_mul_inv_projection(2, 2))/camera2lidar_mul_inv_projection(2, 3);
+                               camera2lidar_mul_inv_projection(2, 1) * normalized_projected_y +
+                               camera2lidar_mul_inv_projection(2, 2)) /
+                             camera2lidar_mul_inv_projection(2, 3);
     auto projected_z = 1.0 / (camera2lidar_mul_inv_projection(3, 0) * normalized_projected_x +
                               camera2lidar_mul_inv_projection(3, 1) * normalized_projected_y +
-                              camera2lidar_mul_inv_projection(3, 2) + camera2lidar_mul_inv_projection(3, 3) * w_div_projected_z);
+                              camera2lidar_mul_inv_projection(3, 2) +
+                              camera2lidar_mul_inv_projection(3, 3) * w_div_projected_z);
     auto w = w_div_projected_z * projected_z;
     Eigen::Vector4f projected_point = Eigen::Vector4f(
-      normalized_projected_x*projected_z, normalized_projected_y *projected_z,
-      projected_z, w);
-    
-    RCLCPP_INFO(get_logger(), "object.pose.x: %f, y: %f, z: %f", normalized_projected_x, normalized_projected_y, projected_z);
+      normalized_projected_x * projected_z, normalized_projected_y * projected_z, projected_z, w);
+
+    RCLCPP_INFO(
+      get_logger(), "object.pose.x: %f, y: %f, z: %f", normalized_projected_x,
+      normalized_projected_y, projected_z);
     Eigen::Vector4f point_lidar = camera2lidar_mul_inv_projection * projected_point;
     geometry_msgs::msg::PoseStamped pose_stamped{};
     pose_stamped.pose.position.x = point_lidar.x();
@@ -157,20 +161,20 @@ void RoiBasedDetectorNode::roiCallback(
     object.shape.dimensions.y = 0.5;
     object.shape.dimensions.z = 0.0;
     geometry_msgs::msg::Point32 point;
-    point.x = point_lidar.x() - 0.5/2;
-    point.y = point_lidar.y() - 0.5/2;
+    point.x = point_lidar.x() - 0.5 / 2;
+    point.y = point_lidar.y() - 0.5 / 2;
     point.z = point_lidar.z();
     object.shape.footprint.points.push_back(point);
-    point.x = point_lidar.x() + 0.5/2;
-    point.y = point_lidar.y() - 0.5/2;
+    point.x = point_lidar.x() + 0.5 / 2;
+    point.y = point_lidar.y() - 0.5 / 2;
     point.z = point_lidar.z();
     object.shape.footprint.points.push_back(point);
-    point.x = point_lidar.x() + 0.5/2;
-    point.y = point_lidar.y() + 0.5/2;
+    point.x = point_lidar.x() + 0.5 / 2;
+    point.y = point_lidar.y() + 0.5 / 2;
     point.z = point_lidar.z();
     object.shape.footprint.points.push_back(point);
-    point.x = point_lidar.x() - 0.5/2;
-    point.y = point_lidar.y() + 0.5/2;
+    point.x = point_lidar.x() - 0.5 / 2;
+    point.y = point_lidar.y() + 0.5 / 2;
     point.z = point_lidar.z();
     object.shape.footprint.points.push_back(point);
     // geometry_msgs::msg::PoseStamped transformed_pose_stamped{};
@@ -189,17 +193,17 @@ void RoiBasedDetectorNode::roiCallback(
 
 void RoiBasedDetectorNode::convertRoiToObjects(
   const tier4_perception_msgs::msg::DetectedObjectWithFeature & roi,
-  const sensor_msgs::msg::CameraInfo & camera_info,
-  autoware_perception_msgs::msg::DetectedObject & object)
+  const sensor_msgs::msg::CameraInfo & camera_info, DetectedObject & object)
 {
   (void)roi;
   (void)camera_info;
   (void)object;
   // Eigen::Matrix4d projection;
-  // projection << camera_info.p.at(0), camera_info.p.at(1), camera_info.p.at(2), camera_info.p.at(3),
+  // projection << camera_info.p.at(0), camera_info.p.at(1), camera_info.p.at(2),
+  // camera_info.p.at(3),
   //   camera_info.p.at(4), camera_info.p.at(5), camera_info.p.at(6), camera_info.p.at(7),
-  //   camera_info.p.at(8), camera_info.p.at(9), camera_info.p.at(10), camera_info.p.at(11), 0.0, 0.0,
-  //   0.0, 1.0;
+  //   camera_info.p.at(8), camera_info.p.at(9), camera_info.p.at(10), camera_info.p.at(11), 0.0,
+  //   0.0, 0.0, 1.0;
 
   // const double fx = camera_info.k[0];
   // const double fy = camera_info.k[4];
@@ -228,7 +232,8 @@ void RoiBasedDetectorNode::convertRoiToObjects(
   // // inv_project(2, 3); projected_point.x / projected_point.z, projected_point.y /
   // // projected_point.z, 1  =  projection(4x3) * Eigen::Vector4d(*iter_x, *iter_y, *iter_z, 1.0) /
   // // projected_point.z; inv_project * (projected_point.x / projected_point.z, projected_point.y /
-  // // projected_point.z, 1, 1/projected_point.z)  =  Eigen::Vector4d(*iter_x, *iter_y, *iter_z, 1.0)
+  // // projected_point.z, 1, 1/projected_point.z)  =  Eigen::Vector4d(*iter_x, *iter_y,
+  // *iter_z, 1.0)
   // // / projected_point.z; inv_project(2,0) * normalized_projected_x + inv_project(2,1) *
   // // normalized_projected_y + inv_project(2,3) = 0.0; inv_project(2,0) * normalized_projected_x +
   // // inv_project(2,1) * normalized_projected_y = -inv_project(2,3);

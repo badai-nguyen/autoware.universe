@@ -15,11 +15,11 @@
 #ifndef ROI_BASED_DETECTOR__ROI_BASED_DETECTOR_NODE_HPP_
 #define ROI_BASED_DETECTOR__ROI_BASED_DETECTOR_NODE_HPP_
 
-#include "autoware/universe_utils/ros/transform_listener.hpp"
+#include "tier4_autoware_utils/ros/transform_listener.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 
-#include <autoware_perception_msgs/msg/detected_objects.hpp>
+#include <autoware_auto_perception_msgs/msg/detected_objects.hpp>
 #include <sensor_msgs/msg/camera_info.hpp>
 #include <tier4_perception_msgs/msg/detected_objects_with_feature.hpp>
 
@@ -43,6 +43,9 @@
 
 namespace roi_based_detector
 {
+using autoware_auto_perception_msgs::msg::DetectedObjects;
+using autoware_auto_perception_msgs::msg::DetectedObject;
+using tier4_autoware_utils::TransformListener;
 class RoiBasedDetectorNode : public rclcpp::Node
 {
 public:
@@ -55,11 +58,11 @@ private:
   void convertRoiToObjects(
     const tier4_perception_msgs::msg::DetectedObjectWithFeature & roi,
     const sensor_msgs::msg::CameraInfo & camera_info,
-    autoware_perception_msgs::msg::DetectedObject & object);
+    DetectedObject & object);
   Eigen::Matrix4d transformToHomogeneous(const geometry_msgs::msg::Transform & transform);
 
   rclcpp::Publisher<tier4_perception_msgs::msg::DetectedObjectsWithFeature>::SharedPtr rois_pub_;
-  rclcpp::Publisher<autoware_perception_msgs::msg::DetectedObjects>::SharedPtr objects_pub_;
+  rclcpp::Publisher<DetectedObjects>::SharedPtr objects_pub_;
   rclcpp::Subscription<tier4_perception_msgs::msg::DetectedObjectsWithFeature>::SharedPtr roi_sub_;
   // camera_info sub
   rclcpp::Subscription<sensor_msgs::msg::CameraInfo>::SharedPtr camera_info_sub_;
@@ -75,7 +78,7 @@ private:
   // tf2_ros::Buffer tf_buffer_;
   // tf2_ros::TransformListener tf_listener_;
 
-  std::shared_ptr<autoware::universe_utils::TransformListener> transform_listener_;
+  std::shared_ptr<TransformListener> transform_listener_;
   geometry_msgs::msg::TransformStamped::ConstSharedPtr transform_;
 };
 }  // namespace roi_based_detector
