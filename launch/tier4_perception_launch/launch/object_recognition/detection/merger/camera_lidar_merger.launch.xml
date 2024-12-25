@@ -35,7 +35,7 @@
 
   <let name="merger1/input/objects0" value="$(var validator/output/objects)" if="$(var use_validator)"/>
   <let name="merger1/input/objects0" value="$(var input/lidar_ml/objects)" unless="$(var use_validator)"/>
-  <let name="merger1/input/objects1" value="$(var input/lidar_rule/objects)"/>
+  <let name="merger1/input/objects1" value="/perception/object_recognition/detection/roi_based_detector/objects"/>
   <let name="merger1/output/objects" value="$(var output/objects)" if="$(var without_dbt_and_filter)"/>
   <let name="merger1/output/objects" value="$(var lidar_detection_model)_roi_cluster_fusion/objects" unless="$(var without_dbt_and_filter)"/>
 
