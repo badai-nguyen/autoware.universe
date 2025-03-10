@@ -88,7 +88,7 @@ private:
     float min_z;
     float max_z;
     bool negative{false};
-  } param_;
+  } param_, transformed_param_;
 
   rclcpp::Publisher<geometry_msgs::msg::PolygonStamped>::SharedPtr crop_box_polygon_pub_;
 

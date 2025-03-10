@@ -124,7 +124,7 @@ void autoware::pointcloud_preprocessor::Filter::setupTF()
     has_static_tf_only_ = true;
   }
   managed_tf_buffer_ =
-    std::make_unique<autoware_utils::ManagedTransformBuffer>(this, has_static_tf_only_);
+    std::make_unique<autoware_utils::ManagedTransformBuffer>(this, false);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////

@@ -80,6 +80,8 @@ CropBoxFilterComponent::CropBoxFilterComponent(const rclcpp::NodeOptions & optio
     p.max_x = declare_parameter<float>("max_x");
     p.max_y = declare_parameter<float>("max_y");
     p.max_z = declare_parameter<float>("max_z");
+
+    // transform p -> base_link and rearrange x max, min
     p.negative = declare_parameter<bool>("negative");
     if (tf_input_frame_.empty()) {
       throw std::invalid_argument("Crop box requires non-empty input_frame");
@@ -135,6 +137,49 @@ void CropBoxFilterComponent::faster_filter(
 
   int skipped_count = 0;
 
+  RCLCPP_INFO(get_logger(), "is need to be transformed %u", transform_info.need_transform);
+  if (transform_info.need_transform){
+    Eigen::Vector4f tlf, brb;
+    tlf[0] = param_.max_x;
+    tlf[1] = param_.max_y;
+    tlf[2] = param_.max_z;
+    tlf[3] = 1.0;
+    brb[0] = param_.min_x;
+    brb[1] = param_.min_y;
+    brb[2] = param_.min_z;
+    brb[3] = 1.0;
+    tlf = transform_info.eigen_transform * tlf;
+    brb = transform_info.eigen_transform * brb;
+    if(tlf[0] > brb[0]){
+      transformed_param_.max_x = tlf[0];
+      transformed_param_.min_x = brb[0];
+    }
+    else{
+      transformed_param_.max_x = brb[0];
+      transformed_param_.min_x = tlf[0];
+    }
+
+    if(tlf[1] > brb[1]){
+      transformed_param_.max_y = tlf[1];
+      transformed_param_.min_y = brb[1];
+    }
+    else{
+      transformed_param_.max_y = brb[1];
+      transformed_param_.min_y = tlf[1];
+    }
+
+    if(tlf[2] > brb[2]){
+      transformed_param_.max_z = tlf[2];
+      transformed_param_.min_z = brb[2];
+    }
+    else{
+      transformed_param_.max_z = brb[2];
+      transformed_param_.min_z = tlf[2];
+    }
+
+    RCLCPP_INFO(get_logger(), "box location: max_x: %f, min_x: %f, max_y: %f, min_y: %f, max_z: %f, min_z: %f",
+    transformed_param_.max_x, transformed_param_.min_x, transformed_param_.max_y, transformed_param_.min_y, transformed_param_.max_z, transformed_param_.min_z);
+  }
   for (size_t global_offset = 0; global_offset + input->point_step <= input->data.size();
        global_offset += input->point_step) {
     Eigen::Vector4f point;
@@ -147,14 +192,13 @@ void CropBoxFilterComponent::faster_filter(
       skipped_count++;
       continue;
     }
-
     if (transform_info.need_transform) {
       point = transform_info.eigen_transform * point;
     }
 
-    bool point_is_inside = point[2] > param_.min_z && point[2] < param_.max_z &&
-                           point[1] > param_.min_y && point[1] < param_.max_y &&
-                           point[0] > param_.min_x && point[0] < param_.max_x;
+    bool point_is_inside = point[2] > transformed_param_.min_z && point[2] < transformed_param_.max_z &&
+                           point[1] > transformed_param_.min_y && point[1] < transformed_param_.max_y &&
+                           point[0] > transformed_param_.min_x && point[0] < transformed_param_.max_x;
     if ((!param_.negative && point_is_inside) || (param_.negative && !point_is_inside)) {
       memcpy(&output.data[output_size], &input->data[global_offset], input->point_step);
 
@@ -219,18 +263,18 @@ void CropBoxFilterComponent::publishCropBoxPolygon()
     return point;
   };
 
-  const double x1 = param_.max_x;
-  const double x2 = param_.min_x;
-  const double x3 = param_.min_x;
-  const double x4 = param_.max_x;
+  const double x1 = transformed_param_.max_x;
+  const double x2 = transformed_param_.min_x;
+  const double x3 = transformed_param_.min_x;
+  const double x4 = transformed_param_.max_x;
 
-  const double y1 = param_.max_y;
-  const double y2 = param_.max_y;
-  const double y3 = param_.min_y;
-  const double y4 = param_.min_y;
+  const double y1 = transformed_param_.max_y;
+  const double y2 = transformed_param_.max_y;
+  const double y3 = transformed_param_.min_y;
+  const double y4 = transformed_param_.min_y;
 
-  const double z1 = param_.min_z;
-  const double z2 = param_.max_z;
+  const double z1 = transformed_param_.min_z;
+  const double z2 = transformed_param_.max_z;
 
   geometry_msgs::msg::PolygonStamped polygon_msg;
   polygon_msg.header.frame_id = tf_input_frame_;
