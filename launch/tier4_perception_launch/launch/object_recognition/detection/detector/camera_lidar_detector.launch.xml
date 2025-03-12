@@ -66,7 +66,7 @@
   <let name="low_intensity_cluster_filter/input/clusters" value="$(var roi_cluster_fusion/output/clusters)"/>
   <let name="low_intensity_cluster_filter/output/clusters" value="$(var ns)/clustering/camera_lidar_fusion/filtered/clusters"/>
 
-  <let name="roi_cluster/input/pointcloud" value="$(var input/pointcloud_map/pointcloud)"/>
+  <let name="roi_cluster/input/pointcloud" value="$(var input/obstacle_segmentation/pointcloud)"/>
   <let name="roi_cluster/output/clusters" value="$(var ns)/clustering/roi_cluster/clusters"/>
   <let name="roi_cluster_merger/input/clusters0" value="$(var low_intensity_cluster_filter/output/clusters)" if="$(var use_low_intensity_cluster_filter)"/>
   <let name="roi_cluster_merger/input/clusters0" value="$(var roi_cluster_fusion/output/clusters)" unless="$(var use_low_intensity_cluster_filter)"/>
@@ -168,34 +168,36 @@
       <push-ros-namespace namespace="roi_cluster"/>
       <group>
         <include file="$(find-pkg-share autoware_image_projection_based_fusion)/launch/roi_pointcloud_fusion.launch.xml" if="$(var use_roi_based_cluster)">
+          <!-- change to fusion with 2 front camera: camera3 and camera5? -->
           <arg name="input/rois_number" value="$(var number_of_cameras)"/>
-          <arg name="input/rois0" value="$(var input/camera0/rois)"/>
-          <arg name="input/rois1" value="$(var input/camera1/rois)"/>
+          <arg name="input/rois0" value="$(var input/camera3/rois)"/>
+          <arg name="input/rois1" value="$(var input/camera5/rois)"/>
           <arg name="input/rois2" value="$(var input/camera2/rois)"/>
-          <arg name="input/rois3" value="$(var input/camera3/rois)"/>
+          <arg name="input/rois3" value="$(var input/camera0/rois)"/>
           <arg name="input/rois4" value="$(var input/camera4/rois)"/>
-          <arg name="input/rois5" value="$(var input/camera5/rois)"/>
+          <arg name="input/rois5" value="$(var input/camera1/rois)"/>
           <arg name="input/rois6" value="$(var input/camera6/rois)"/>
           <arg name="input/rois7" value="$(var input/camera7/rois)"/>
-          <arg name="input/camera_info0" value="$(var input/camera0/info)"/>
-          <arg name="input/camera_info1" value="$(var input/camera1/info)"/>
+          <arg name="input/camera_info0" value="$(var input/camera3/info)"/>
+          <arg name="input/camera_info1" value="$(var input/camera5/info)"/>
           <arg name="input/camera_info2" value="$(var input/camera2/info)"/>
-          <arg name="input/camera_info3" value="$(var input/camera3/info)"/>
+          <arg name="input/camera_info3" value="$(var input/camera0/info)"/>
           <arg name="input/camera_info4" value="$(var input/camera4/info)"/>
-          <arg name="input/camera_info5" value="$(var input/camera5/info)"/>
+          <arg name="input/camera_info5" value="$(var input/camera1/info)"/>
           <arg name="input/camera_info6" value="$(var input/camera6/info)"/>
           <arg name="input/camera_info7" value="$(var input/camera7/info)"/>
-          <arg name="input/image0" value="$(var input/camera0/image)"/>
-          <arg name="input/image1" value="$(var input/camera1/image)"/>
+          <arg name="input/image0" value="$(var input/camera3/image)"/>
+          <arg name="input/image1" value="$(var input/camera5/image)"/>
           <arg name="input/image2" value="$(var input/camera2/image)"/>
-          <arg name="input/image3" value="$(var input/camera3/image)"/>
+          <arg name="input/image3" value="$(var input/camera0/image)"/>
           <arg name="input/image4" value="$(var input/camera4/image)"/>
-          <arg name="input/image5" value="$(var input/camera5/image)"/>
+          <arg name="input/image5" value="$(var input/camera1/image)"/>
           <arg name="input/image6" value="$(var input/camera6/image)"/>
           <arg name="input/image7" value="$(var input/camera7/image)"/>
           <arg name="input/pointcloud" value="$(var roi_cluster/input/pointcloud)"/>
           <arg name="output/clusters" value="$(var roi_cluster/output/clusters)"/>
           <arg name="param_path" value="$(var roi_pointcloud_fusion_param_path)"/>
+          <arg name="input/rois_number" value="2"/>
         </include>
       </group>
     </group>
