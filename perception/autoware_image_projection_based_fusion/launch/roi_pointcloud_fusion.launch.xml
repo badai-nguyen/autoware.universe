@@ -33,10 +33,14 @@
   <arg name="input/image6" default="/image_raw6"/>
   <arg name="input/image7" default="/image_raw7"/>
   <group>
-    <node pkg="autoware_image_projection_based_fusion" exec="roi_pointcloud_fusion_node" name="roi_pointcloud_fusion" output="screen">
+  <node_container pkg="rclcpp_components" exec="component_container" name="pointcloud_container" namespace="/">
+    <composable_node pkg="autoware_image_projection_based_fusion" plugin="autoware::image_projection_based_fusion::RoiPointCloudFusionNode" name="roi_pointcloud_fusion">
       <param name="rois_number" value="$(var input/rois_number)"/>
       <param from="$(var param_path)"/>
-      <param from="$(var sync_param_path)"/>
+      <param from="$(var sync_param_path)" allow_substs="true"/>
+      <param name="input_offset_ms" value="[40.0, 40.0,-10.0, 15.0, 65.00, 40.0, 40.0, 73.3, 6.7]"/>
+      <param name="point_project_to_unrectified_image" value="[true, true]"/>
+      <param name="debug_mode" value="true"/>
       <remap from="input" to="$(var input/pointcloud)"/>
       <remap from="output" to="$(var output/clusters)"/>
       <remap from="debug/clusters" to="$(var debug/clusters)"/>
@@ -66,6 +70,7 @@
       <param name="input/rois7" value="$(var input/rois7)"/>
       <param name="input/camera_info7" value="$(var input/camera_info7)"/>
       <param name="input/image7" value="$(var input/image7)"/>
-    </node>
+    </composable_node>
+  </node_container>
   </group>
 </launch>
