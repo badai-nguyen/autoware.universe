@@ -122,7 +122,10 @@ void SegmentPointCloudFusionNode::fuseOnSingleImage(
     float transformed_z =
       *reinterpret_cast<float *>(&transformed_cloud.data[global_offset + z_offset]);
     // skip filtering pointcloud behind the camera or too far from camera
-    if (transformed_z <= 0.0 || transformed_z > filter_distance_threshold_) {
+    if (det2d.camera_projector_ptr->isOutsideHorizontalView(transformed_x, transformed_z)) {
+      continue;
+    }
+    if (transformed_z > filter_distance_threshold_) {
       continue;
     }
 
