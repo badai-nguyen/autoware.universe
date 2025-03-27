@@ -1,0 +1,217 @@
+# Copyright 2025 Tier IV, Inc. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+import ast
+import os
+
+from ament_index_python.packages import get_package_share_directory
+import launch
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
+from launch.actions import IncludeLaunchDescription
+from launch.actions import OpaqueFunction
+from launch.actions import SetLaunchConfiguration
+from launch.conditions import IfCondition
+from launch.conditions import UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
+from launch_ros.actions import ComposableNodeContainer
+from launch_ros.actions import LoadComposableNodes
+from launch_ros.descriptions import ComposableNode
+from launch_ros.substitutions import FindPackageShare
+import yaml
+
+
+class SmallUnknownPipeline:
+    def __init__(self, context):
+        self.context = context
+        self.vehicle_info = self.get_vehicle_info()
+        with open(
+            LaunchConfiguration("small_unknown_object_detector_param_path").perform(context), "r"
+        ) as f:
+            self.small_unknown_object_detector_param = yaml.safe_load(f)["/**"]["ros__parameters"]
+
+        with open(LaunchConfiguration("sync_param_path").perform(context), "r") as f:
+            self.roi_pointcloud_fusion_sync_param = yaml.safe_load(f)["/**"]["ros__parameters"]
+
+        self.roi_pointcloud_fusion_param = self.small_unknown_object_detector_param[
+            "roi_pointcloud_fusion"
+        ]["parameters"]
+
+        self.camera_ids = LaunchConfiguration("fusion_camera_ids").perform(context)
+        # convert string to list
+        self.camera_ids = yaml.load(self.camera_ids, Loader=yaml.FullLoader)
+        self.roi_pointcloud_fusion_param["rois_number"] = len(self.camera_ids)
+        input_offset_ms = []
+        approximate_camera_projection = []
+        for index, id in enumerate(self.camera_ids):
+            input_offset_ms.append(self.roi_pointcloud_fusion_sync_param["input_offset_ms"][id])
+            approximate_camera_projection.append(True)
+            self.roi_pointcloud_fusion_param[f"input/rois{index}"] = (
+                f"/perception/object_recognition/detection/rois{id}"
+            )
+            self.roi_pointcloud_fusion_param[f"input/camera_info{index}"] = (
+                f"/sensing/camera/camera{id}/camera_info"
+            )
+            self.roi_pointcloud_fusion_param[f"input/image{index}"] = (
+                f"/sensing/camera/camera{id}/image_raw"
+            )
+
+        self.roi_pointcloud_fusion_sync_param["input_offset_ms"] = input_offset_ms
+        self.roi_pointcloud_fusion_sync_param["approximate_camera_projection"] = (
+            approximate_camera_projection
+        )
+
+    def get_vehicle_info(self):
+        # TODO(TIER IV): Use Parameter Substitution after we drop Galactic support
+        # https://github.com/ros2/launch_ros/blob/master/launch_ros/launch_ros/substitutions/parameter.py
+        gp = self.context.launch_configurations.get("ros_params", {})
+        if not gp:
+            gp = dict(self.context.launch_configurations.get("global_params", {}))
+        p = {}
+        p["vehicle_length"] = gp["front_overhang"] + gp["wheel_base"] + gp["rear_overhang"]
+        p["vehicle_width"] = gp["wheel_tread"] + gp["left_overhang"] + gp["right_overhang"]
+        p["min_longitudinal_offset"] = -gp["rear_overhang"]
+        p["max_longitudinal_offset"] = gp["front_overhang"] + gp["wheel_base"]
+        p["min_lateral_offset"] = -(gp["wheel_tread"] / 2.0 + gp["right_overhang"])
+        p["max_lateral_offset"] = gp["wheel_tread"] / 2.0 + gp["left_overhang"]
+        p["min_height_offset"] = 0.0
+        p["max_height_offset"] = gp["vehicle_height"]
+        return p
+
+    def create_small_unknown_object_pipeline(self, input_topic, output_topic):
+        components = []
+        # create cropbox filter
+        components.append(
+            ComposableNode(
+                package="autoware_pointcloud_preprocessor",
+                plugin="autoware::pointcloud_preprocessor::CropBoxFilterComponent",
+                name="crop_box_filter",
+                remappings=[("input", input_topic), ("output", "cropped_range/pointcloud")],
+                parameters=[
+                    {
+                        "input_frame": LaunchConfiguration("base_frame"),
+                        "output_frame": LaunchConfiguration("base_frame"),
+                    },
+                    self.small_unknown_object_detector_param["crop_box_filter"]["parameters"],
+                ],
+                extra_arguments=[
+                    {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
+                ],
+            )
+        )
+
+        # create ground_segmentation
+        components.append(
+            ComposableNode(
+                package="autoware_ground_segmentation",
+                plugin="autoware::ground_segmentation::ScanGroundFilterComponent",
+                name="ground_filter",
+                remappings=[
+                    ("input", "cropped_range/pointcloud"),
+                    ("output", "obstacle_segmentation/pointcloud"),
+                ],
+                parameters=[
+                    self.small_unknown_object_detector_param["ground_segmentation"]["parameters"]
+                ],
+                extra_arguments=[
+                    {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
+                ],
+            )
+        )
+        # add roi_pointcloud_fusion node
+
+        components.append(
+            ComposableNode(
+                package="autoware_image_projection_based_fusion",
+                plugin="autoware::image_projection_based_fusion::RoiPointCloudFusionNode",
+                name="roi_pointcloud_fusion",
+                remappings=[
+                    ("input", "obstacle_segmentation/pointcloud"),
+                    ("output", output_topic),
+                ],
+                parameters=[
+                    self.roi_pointcloud_fusion_sync_param,
+                    self.roi_pointcloud_fusion_param,
+                ],
+                extra_arguments=[
+                    {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
+                ],
+            )
+        )
+        return components
+
+
+def launch_setup(context, *args, **kwargs):
+    pipeline = SmallUnknownPipeline(context)
+    components = []
+    components.extend(
+        pipeline.create_small_unknown_object_pipeline(
+            LaunchConfiguration("input/pointcloud"), LaunchConfiguration("output_topic")
+        )
+    )
+    loader = LoadComposableNodes(
+        composable_node_descriptions=components,
+        target_container=LaunchConfiguration("pointcloud_container_name"),
+    )
+    return [loader]
+
+
+def generate_launch_description():
+    launch_arguments = []
+
+    def add_launch_arg(name: str, default_value=None):
+        launch_arguments.append(DeclareLaunchArgument(name, default_value=default_value))
+
+    add_launch_arg("input/pointcloud", "/sensing/lidar/concatenated/pointcloud")
+    add_launch_arg(
+        "output_topic", "/perception/object_recognition/detection/small_unknown/clusters"
+    )
+    add_launch_arg("base_frame", "base_link")
+    add_launch_arg("use_intra_process", "True")
+    add_launch_arg("use_multithread", "True")
+    add_launch_arg("fusion_camera_ids", "[3,5]")
+    add_launch_arg("image_topic_name", "image_raw")
+    add_launch_arg("pointcloud_container_name", "pointcloud_container")
+    add_launch_arg("use_pointcloud_container", "True")
+    add_launch_arg(
+        "small_unknown_object_detector_param_path",
+        [
+            FindPackageShare("autoware_launch"),
+            "/config/perception/object_recognition/detection/small_unknown_object/small_unknown_object.param.yaml",
+        ],
+    )
+    add_launch_arg(
+        "sync_param_path",
+        [
+            FindPackageShare("autoware_launch"),
+            "/config/perception/object_recognition/detection/image_projection_based_fusion/fusion_common.param.yaml",
+        ],
+    )
+
+    set_container_executable = SetLaunchConfiguration(
+        "container_executable",
+        "component_container",
+        condition=UnlessCondition(LaunchConfiguration("use_multithread")),
+    )
+
+    set_container_mt_executable = SetLaunchConfiguration(
+        "container_executable",
+        "component_container_mt",
+        condition=IfCondition(LaunchConfiguration("use_multithread")),
+    )
+    return launch.LaunchDescription(
+        launch_arguments
+        + [set_container_executable, set_container_mt_executable]
+        + [OpaqueFunction(function=launch_setup)]
+    )
