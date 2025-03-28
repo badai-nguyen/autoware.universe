@@ -65,7 +65,7 @@
   <let name="low_intensity_cluster_filter/output/clusters" value="$(var ns)/clustering/camera_lidar_fusion/filtered/clusters"/>
 
   <let name="roi_cluster/input/pointcloud" value="$(var input/pointcloud_map/pointcloud)"/>
-  <let name="roi_cluster/output/clusters" value="$(var ns)/clustering/roi_cluster/clusters"/>
+  <let name="small_unknown_objects/clusters" value="$(var ns)/small_unknown_objects/clusters"/>
   <let name="roi_cluster_merger/input/clusters0" value="$(var low_intensity_cluster_filter/output/clusters)" if="$(var use_low_intensity_cluster_filter)"/>
   <let name="roi_cluster_merger/input/clusters0" value="$(var roi_cluster_fusion/output/clusters)" unless="$(var use_low_intensity_cluster_filter)"/>
   <let name="roi_cluster_merger/output/clusters" value="$(var ns)/clustering/camera_lidar_fusion/merger/clusters"/>
@@ -148,6 +148,21 @@
       <arg name="output/pointcloud" value="$(var segmentation_based_filtered/output/pointcloud)"/>
     </include>
   </group>
+  <!-- small unknown object detector -->
+  <group>
+    <push-ros-namespace namespace="small_unknown_object_detector"/>
+    <group>
+      <include
+        file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_detector_small_unknown.launch.py"
+        if="$(var use_small_unknown_object_pipeline)"
+      >
+        <arg name="input/pointcloud" value="/sensing/lidar/concatenated/pointcloud"/>
+        <arg name="output_topic" value="$(var small_unknown_objects/clusters)"/>
+        <arg name="pointcloud_container_name" value="$(var node/pointcloud_container)"/>
+        <arg name="fusion_camera_ids" value="[3,5]"/>
+      </include>
+    </group>
+  </group>
 
   <!-- Clustering -->
   <group>
@@ -159,22 +174,6 @@
         <arg name="use_low_height_cropbox" value="$(var use_low_height_cropbox)"/>
         <arg name="use_pointcloud_container" value="false"/>
       </include>
-    </group>
-
-    <!-- roi based clustering -->
-    <group>
-      <push-ros-namespace namespace="roi_cluster"/>
-      <group>
-        <include
-          file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_detector_small_unknown.launch.py"
-          if="$(var use_small_unknown_object_pipeline)"
-        >
-          <arg name="input/pointcloud" value="/sensing/lidar/concatenated/pointcloud"/>
-          <arg name="output_topic" value="$(var roi_cluster/output/clusters)"/>
-          <arg name="pointcloud_container_name" value="$(var node/pointcloud_container)"/>
-          <arg name="fusion_camera_ids" value="[3,5]"/>
-        </include>
-      </group>
     </group>
 
     <!-- shape_estimation 1 -->
@@ -235,7 +234,7 @@
       <group>
         <include file="$(find-pkg-share autoware_cluster_merger)/launch/cluster_merger.launch.xml" if="$(var use_small_unknown_object_pipeline)">
           <arg name="input/cluster0" value="$(var roi_cluster_merger/input/clusters0)"/>
-          <arg name="input/cluster1" value="$(var roi_cluster/output/clusters)"/>
+          <arg name="input/cluster1" value="$(var small_unknown_objects/clusters)"/>
           <arg name="output/clusters" value="$(var roi_cluster_merger/output/clusters)"/>
         </include>
       </group>
