@@ -159,7 +159,7 @@
         <arg name="input/pointcloud" value="/sensing/lidar/concatenated/pointcloud"/>
         <arg name="output_topic" value="$(var small_unknown_objects/clusters)"/>
         <arg name="pointcloud_container_name" value="$(var node/pointcloud_container)"/>
-        <arg name="fusion_camera_ids" value="[3,5]"/>
+        <arg name="fusion_camera_ids" value="[0]"/>
       </include>
     </group>
   </group>
