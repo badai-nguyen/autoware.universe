@@ -1,0 +1,65 @@
+<?xml version="1.0"?>
+
+
+<launch>
+  <!-- Current namespace -->
+  <arg name="ns" description="current namespace"/>
+  <arg name="pipeline_ns" description="pipeline namespace"/>
+  <arg name="input/pointcloud"/>
+
+    <!-- External interfaces -->
+  <arg name="input/camera0/image"/>
+  <arg name="input/camera0/info"/>
+  <arg name="input/camera0/rois"/>
+  <arg name="input/camera1/image"/>
+  <arg name="input/camera1/info"/>
+  <arg name="input/camera1/rois"/>
+  <arg name="input/camera2/image"/>
+  <arg name="input/camera2/info"/>
+  <arg name="input/camera2/rois"/>
+  <arg name="input/camera3/image"/>
+  <arg name="input/camera3/info"/>
+  <arg name="input/camera3/rois"/>
+  <arg name="input/camera4/image"/>
+  <arg name="input/camera4/info"/>
+  <arg name="input/camera4/rois"/>
+  <arg name="input/camera5/image"/>
+  <arg name="input/camera5/info"/>
+  <arg name="input/camera5/rois"/>
+  <arg name="input/camera6/image"/>
+  <arg name="input/camera6/info"/>
+  <arg name="input/camera6/rois"/>
+  <arg name="input/camera7/image"/>
+  <arg name="input/camera7/info"/>
+  <arg name="input/camera7/rois"/>
+
+  <let name="small_unknown_objects/input/pointcloud" value="$(var input/pointcloud)"/>
+  <!-- small unknown object detector -->
+  <group>
+    <push-ros-namespace namespace="$(var pipeline_ns)"/>
+    <group>
+      <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_detector_small_unknown.launch.py">
+        <arg name="input/pointcloud" value="$(var small_unknown_objects/input/pointcloud)"/>
+        <arg name="output_topic" value="clusters"/>
+        <arg name="pointcloud_container_name" value="$(var node/pointcloud_container)"/>
+        <arg name="fusion_camera_ids" value="[0]"/>
+      </include>
+    </group>
+    <!-- Unknown Object Convex Hull estimation -->
+    <group>
+      <include file="$(find-pkg-share autoware_shape_estimation)/launch/shape_estimation.launch.xml">
+        <arg name="input/objects" value="clusters"/>
+        <arg name="output/objects" value="objects_with_feature"/>
+      </include>
+    </group>
+
+    <!-- convert DynamicObjectsWithFeatureArray to DynamicObjects -->
+    <group>
+      <include file="$(find-pkg-share autoware_detected_object_feature_remover)/launch/detected_object_feature_remover.launch.xml">
+        <arg name="input" value="objects_with_feature"/>
+        <arg name="output" value="objects"/>
+      </include>
+    </group>
+
+  </group>
+</launch>
