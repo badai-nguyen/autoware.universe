@@ -52,10 +52,12 @@ class SmallUnknownPipeline:
         # convert string to list
         self.camera_ids = yaml.load(self.camera_ids, Loader=yaml.FullLoader)
         self.roi_pointcloud_fusion_param["rois_number"] = len(self.camera_ids)
-        input_offset_ms = []
+        rois_timestamp_offsets = []
         approximate_camera_projection = []
         for index, id in enumerate(self.camera_ids):
-            input_offset_ms.append(self.roi_pointcloud_fusion_sync_param["input_offset_ms"][id])
+            rois_timestamp_offsets.append(
+                self.roi_pointcloud_fusion_sync_param["rois_timestamp_offsets"][id]
+            )
             approximate_camera_projection.append(True)
             self.roi_pointcloud_fusion_param[f"input/rois{index}"] = (
                 f"/perception/object_recognition/detection/rois{id}"
@@ -67,7 +69,7 @@ class SmallUnknownPipeline:
                 f"/sensing/camera/camera{id}/image_raw"
             )
 
-        self.roi_pointcloud_fusion_sync_param["input_offset_ms"] = input_offset_ms
+        self.roi_pointcloud_fusion_sync_param["rois_timestamp_offsets"] = rois_timestamp_offsets
         self.roi_pointcloud_fusion_sync_param["approximate_camera_projection"] = (
             approximate_camera_projection
         )
