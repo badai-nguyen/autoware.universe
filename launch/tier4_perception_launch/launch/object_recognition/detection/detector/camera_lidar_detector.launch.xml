@@ -64,23 +64,14 @@
   <let name="low_intensity_cluster_filter/input/clusters" value="$(var roi_cluster_fusion/output/clusters)"/>
   <let name="low_intensity_cluster_filter/output/clusters" value="$(var ns)/clustering/camera_lidar_fusion/filtered/clusters"/>
 
-  <let name="roi_cluster/input/pointcloud" value="$(var input/pointcloud_map/pointcloud)"/>
-  <let name="small_unknown_objects/clusters" value="$(var ns)/small_unknown_objects/clusters"/>
-  <let name="roi_cluster_merger/input/clusters0" value="$(var low_intensity_cluster_filter/output/clusters)" if="$(var use_low_intensity_cluster_filter)"/>
-  <let name="roi_cluster_merger/input/clusters0" value="$(var roi_cluster_fusion/output/clusters)" unless="$(var use_low_intensity_cluster_filter)"/>
-  <let name="roi_cluster_merger/output/clusters" value="$(var ns)/clustering/camera_lidar_fusion/merger/clusters"/>
+  <let name="small_unknown_objects/input/pointcloud" value="$(var input/pointcloud)"/>
+  <let name="small_unknown_objects/output/clusters" value="$(var ns)/small_unknown_objects/clusters"/>
+  <let name="small_unknown_objects_merger/input/clusters0" value="$(var low_intensity_cluster_filter/output/clusters)" if="$(var use_low_intensity_cluster_filter)"/>
+  <let name="small_unknown_objects_merger/input/clusters0" value="$(var roi_cluster_fusion/output/clusters)" unless="$(var use_low_intensity_cluster_filter)"/>
+  <let name="small_unknown_objects_merger/output/clusters" value="$(var ns)/clustering/camera_lidar_fusion/merger/clusters"/>
 
-  <let name="shape_estimation2/input/clusters" value="$(var roi_cluster_merger/output/clusters)" if="$(var use_small_unknown_object_pipeline)"/>
-  <let
-    name="shape_estimation2/input/clusters"
-    value="$(var low_intensity_cluster_filter/output/clusters)"
-    if="$(eval &quot;'$(var use_small_unknown_object_pipeline)' == 'false' and '$(var use_low_intensity_cluster_filter)' == 'true'&quot;)"
-  />
-  <let
-    name="shape_estimation2/input/clusters"
-    value="$(var roi_cluster_fusion/output/clusters)"
-    if="$(eval &quot;'$(var use_small_unknown_object_pipeline)' == 'false' and '$(var use_low_intensity_cluster_filter)' == 'false'&quot;)"
-  />
+  <let name="shape_estimation2/input/clusters" value="$(var small_unknown_objects_merger/output/clusters)" if="$(var use_small_unknown_object_pipeline)"/>
+  <let name="shape_estimation2/input/clusters" value="$(var small_unknown_objects_merger/input/clusters0)" unless="$(var use_small_unknown_object_pipeline)"/>
   <let name="shape_estimation2/output/objects" value="$(var ns)/clustering/camera_lidar_fusion/objects_with_feature"/>
   <let name="detected_object_feature_remover/input/objects_with_feature" value="$(var shape_estimation2/output/objects)"/>
   <let name="detected_object_feature_remover/output/objects" value="$(var output/rule_detector/objects)"/>
@@ -156,8 +147,8 @@
         file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_detector_small_unknown.launch.py"
         if="$(var use_small_unknown_object_pipeline)"
       >
-        <arg name="input/pointcloud" value="/sensing/lidar/concatenated/pointcloud"/>
-        <arg name="output_topic" value="$(var small_unknown_objects/clusters)"/>
+        <arg name="input/pointcloud" value="$(var small_unknown_objects/input/pointcloud)"/>
+        <arg name="output_topic" value="$(var small_unknown_objects/output/clusters)"/>
         <arg name="pointcloud_container_name" value="$(var node/pointcloud_container)"/>
         <arg name="fusion_camera_ids" value="[0]"/>
       </include>
@@ -233,9 +224,9 @@
       <!-- simple_cluster_merger -->
       <group>
         <include file="$(find-pkg-share autoware_cluster_merger)/launch/cluster_merger.launch.xml" if="$(var use_small_unknown_object_pipeline)">
-          <arg name="input/cluster0" value="$(var roi_cluster_merger/input/clusters0)"/>
-          <arg name="input/cluster1" value="$(var small_unknown_objects/clusters)"/>
-          <arg name="output/clusters" value="$(var roi_cluster_merger/output/clusters)"/>
+          <arg name="input/cluster0" value="$(var small_unknown_objects_merger/input/clusters0)"/>
+          <arg name="input/cluster1" value="$(var small_unknown_objects/output/clusters)"/>
+          <arg name="output/clusters" value="$(var small_unknown_objects_merger/output/clusters)"/>
         </include>
       </group>
 
