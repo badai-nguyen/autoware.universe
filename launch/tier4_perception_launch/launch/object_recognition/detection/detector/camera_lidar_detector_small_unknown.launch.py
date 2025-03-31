@@ -11,21 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-import ast
-import os
 
-from ament_index_python.packages import get_package_share_directory
 import launch
-from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
-from launch.actions import IncludeLaunchDescription
 from launch.actions import OpaqueFunction
 from launch.actions import SetLaunchConfiguration
 from launch.conditions import IfCondition
 from launch.conditions import UnlessCondition
-from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
-from launch_ros.actions import ComposableNodeContainer
 from launch_ros.actions import LoadComposableNodes
 from launch_ros.descriptions import ComposableNode
 from launch_ros.substitutions import FindPackageShare
@@ -54,19 +47,19 @@ class SmallUnknownPipeline:
         self.roi_pointcloud_fusion_param["rois_number"] = len(self.camera_ids)
         rois_timestamp_offsets = []
         approximate_camera_projection = []
-        for index, id in enumerate(self.camera_ids):
+        for index, camera_id in enumerate(self.camera_ids):
             rois_timestamp_offsets.append(
-                self.roi_pointcloud_fusion_sync_param["rois_timestamp_offsets"][id]
+                self.roi_pointcloud_fusion_sync_param["rois_timestamp_offsets"][camera_id]
             )
             approximate_camera_projection.append(True)
             self.roi_pointcloud_fusion_param[f"input/rois{index}"] = (
-                f"/perception/object_recognition/detection/rois{id}"
+                f"/perception/object_recognition/detection/rois{camera_id}"
             )
             self.roi_pointcloud_fusion_param[f"input/camera_info{index}"] = (
-                f"/sensing/camera/camera{id}/camera_info"
+                f"/sensing/camera/camera{camera_id}/camera_info"
             )
             self.roi_pointcloud_fusion_param[f"input/image{index}"] = (
-                f"/sensing/camera/camera{id}/image_raw"
+                f"/sensing/camera/camera{camera_id}/image_raw"
             )
 
         self.roi_pointcloud_fusion_sync_param["rois_timestamp_offsets"] = rois_timestamp_offsets
