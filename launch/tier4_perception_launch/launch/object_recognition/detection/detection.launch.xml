@@ -184,7 +184,7 @@
 
   <group if="$(var switch/detector/small_objects)">
     <!-- Small unknown object detector -->
-    <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_detector_small_unknown.launch.xml">
+    <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_irregular_object_detector.launch.xml">
       <arg name="ns" value="$(var ns)"/>
       <arg name="pipeline_ns" value="$(var small_unknown_object_pipeline_ns)"/>
       <arg name="input/camera0/image" value="$(var input/camera0/image)"/>

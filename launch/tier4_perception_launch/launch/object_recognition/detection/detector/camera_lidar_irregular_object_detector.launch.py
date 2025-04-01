@@ -208,7 +208,7 @@ def generate_launch_description():
         "small_unknown_object_detector_param_path",
         [
             FindPackageShare("autoware_launch"),
-            "/config/perception/object_recognition/detection/small_unknown_object/small_unknown_object.param.yaml",
+            "/config/perception/object_recognition/detection/irregular_object_detection/irregular_object_detector.param.yaml",
         ],
     )
     add_launch_arg(
