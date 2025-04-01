@@ -1,13 +1,11 @@
 <?xml version="1.0"?>
-
-
 <launch>
   <!-- Current namespace -->
   <arg name="ns" description="current namespace"/>
   <arg name="pipeline_ns" description="pipeline namespace"/>
   <arg name="input/pointcloud"/>
 
-    <!-- External interfaces -->
+  <!-- External interfaces -->
   <arg name="input/camera0/image"/>
   <arg name="input/camera0/info"/>
   <arg name="input/camera0/rois"/>
@@ -60,6 +58,5 @@
         <arg name="output" value="objects"/>
       </include>
     </group>
-
   </group>
 </launch>
