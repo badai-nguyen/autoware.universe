@@ -30,14 +30,14 @@ class SmallUnknownPipeline:
         self.context = context
         self.vehicle_info = self.get_vehicle_info()
         with open(
-            LaunchConfiguration("small_unknown_object_detector_param_path").perform(context), "r"
+            LaunchConfiguration("irregular_object_detector_param_path").perform(context), "r"
         ) as f:
-            self.small_unknown_object_detector_param = yaml.safe_load(f)["/**"]["ros__parameters"]
+            self.irregular_object_detector_param = yaml.safe_load(f)["/**"]["ros__parameters"]
 
         with open(LaunchConfiguration("sync_param_path").perform(context), "r") as f:
             self.roi_pointcloud_fusion_sync_param = yaml.safe_load(f)["/**"]["ros__parameters"]
 
-        self.roi_pointcloud_fusion_param = self.small_unknown_object_detector_param[
+        self.roi_pointcloud_fusion_param = self.irregular_object_detector_param[
             "roi_pointcloud_fusion"
         ]["parameters"]
 
@@ -109,7 +109,7 @@ class SmallUnknownPipeline:
         p["max_height_offset"] = gp["vehicle_height"]
         return p
 
-    def create_small_unknown_object_pipeline(self, input_topic, output_topic):
+    def create_irregular_object_pipeline(self, input_topic, output_topic):
         components = []
         # create cropbox filter
         components.append(
@@ -123,7 +123,7 @@ class SmallUnknownPipeline:
                         "input_frame": LaunchConfiguration("base_frame"),
                         "output_frame": LaunchConfiguration("base_frame"),
                     },
-                    self.small_unknown_object_detector_param["crop_box_filter"]["parameters"],
+                    self.irregular_object_detector_param["crop_box_filter"]["parameters"],
                 ],
                 extra_arguments=[
                     {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
@@ -142,7 +142,7 @@ class SmallUnknownPipeline:
                     ("output", "obstacle_segmentation/pointcloud"),
                 ],
                 parameters=[
-                    self.small_unknown_object_detector_param["ground_segmentation"]["parameters"]
+                    self.irregular_object_detector_param["ground_segmentation"]["parameters"]
                 ],
                 extra_arguments=[
                     {"use_intra_process_comms": LaunchConfiguration("use_intra_process")}
@@ -176,7 +176,7 @@ def launch_setup(context, *args, **kwargs):
     pipeline = SmallUnknownPipeline(context)
     components = []
     components.extend(
-        pipeline.create_small_unknown_object_pipeline(
+        pipeline.create_irregular_object_pipeline(
             LaunchConfiguration("input/pointcloud"), LaunchConfiguration("output_topic")
         )
     )
@@ -195,7 +195,7 @@ def generate_launch_description():
 
     add_launch_arg("input/pointcloud", "/sensing/lidar/concatenated/pointcloud")
     add_launch_arg(
-        "output_topic", "/perception/object_recognition/detection/small_unknown/clusters"
+        "output_topic", "/perception/object_recognition/detection/irregular_object/clusters"
     )
     add_launch_arg("base_frame", "base_link")
     add_launch_arg("use_intra_process", "True")
@@ -205,7 +205,7 @@ def generate_launch_description():
     add_launch_arg("pointcloud_container_name", "pointcloud_container")
     add_launch_arg("use_pointcloud_container", "True")
     add_launch_arg(
-        "small_unknown_object_detector_param_path",
+        "irregular_object_detector_param_path",
         [
             FindPackageShare("autoware_launch"),
             "/config/perception/object_recognition/detection/irregular_object_detection/irregular_object_detector.param.yaml",

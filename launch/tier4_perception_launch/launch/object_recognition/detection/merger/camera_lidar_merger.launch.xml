@@ -7,7 +7,7 @@
   <!-- Pipeline junctions -->
   <arg name="lidar_detection_model_type"/>
   <arg name="use_detection_by_tracker"/>
-  <arg name="use_small_unknown_object_pipeline"/>
+  <arg name="use_irregular_object_detector"/>
 
   <arg name="use_object_filter" description="use object filter"/>
   <arg name="objects_filter_method"/>
@@ -49,9 +49,9 @@
   <let name="detected_object_roi_filter/output/objects" value="$(var lidar_detection_model_type)/roi_fusion/objects"/>
 
   <let name="merger0/input/objects0" value="$(var detected_object_roi_filter/output/objects)"/>
-  <let name="merger0/input/objects1" value="$(var detected_small_unknown/output/objects)"/>
-  <let name="merger0/output/objects" value="$(var detected_object_roi_filter/output/objects)" unless="$(var use_small_unknown_object_pipeline)"/>
-  <let name="merger0/output/objects" value="$(var lidar_detection_model_type)_roi_pointcloud_fusion/objects" if="$(var use_small_unknown_object_pipeline)"/>
+  <let name="merger0/input/objects1" value="$(var detected_irregular_object/output/objects)"/>
+  <let name="merger0/output/objects" value="$(var detected_object_roi_filter/output/objects)" unless="$(var use_irregular_object_detector)"/>
+  <let name="merger0/output/objects" value="$(var lidar_detection_model_type)_roi_pointcloud_fusion/objects" if="$(var use_irregular_object_detector)"/>
 
   <let name="merger1/input/objects0" value="$(var merger0/output/objects)"/>
   <let name="merger1/input/objects1" value="$(var input/lidar_rule/objects)"/>
@@ -101,7 +101,7 @@
     </include>
   </group>
 
-  <!-- merger: small_unknown_objects + ml_lidar -->
+  <!-- merger: irregular_objects + ml_lidar -->
   <group>
     <let name="simple_object_merger_param_path" value="$(find-pkg-share autoware_simple_object_merger)/config/simple_object_merger.param.yaml"/>
     <node pkg="autoware_simple_object_merger" exec="simple_object_merger_node" name="simple_object_merger" output="screen">
