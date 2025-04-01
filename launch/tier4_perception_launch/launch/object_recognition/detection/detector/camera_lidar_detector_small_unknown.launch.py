@@ -48,6 +48,8 @@ class SmallUnknownPipeline:
         rois_timestamp_offsets = []
         approximate_camera_projection = []
         rois_timestamp_noise_window = []
+        approximate_camera_projection = []
+        point_project_to_unrectified_image = []
 
         for index, camera_id in enumerate(self.camera_ids):
             rois_timestamp_offsets.append(
@@ -58,7 +60,14 @@ class SmallUnknownPipeline:
                     "rois_timestamp_noise_window"
                 ][camera_id]
             )
-            approximate_camera_projection.append(True)
+            approximate_camera_projection.append(
+                self.roi_pointcloud_fusion_sync_param["approximate_camera_projection"][camera_id]
+            )
+            point_project_to_unrectified_image.append(
+                self.roi_pointcloud_fusion_sync_param["point_project_to_unrectified_image"][
+                    camera_id
+                ]
+            )
             self.roi_pointcloud_fusion_param[f"input/rois{index}"] = (
                 f"/perception/object_recognition/detection/rois{camera_id}"
             )
@@ -76,6 +85,12 @@ class SmallUnknownPipeline:
         self.roi_pointcloud_fusion_sync_param["matching_strategy"][
             "rois_timestamp_noise_window"
         ] = rois_timestamp_noise_window
+        self.roi_pointcloud_fusion_sync_param["approximate_camera_projection"] = (
+            approximate_camera_projection
+        )
+        self.roi_pointcloud_fusion_sync_param["point_project_to_unrectified_image"] = (
+            point_project_to_unrectified_image
+        )
 
     def get_vehicle_info(self):
         # TODO(TIER IV): Use Parameter Substitution after we drop Galactic support
