@@ -193,6 +193,7 @@
       <arg name="image_topic_name" value="$(var image_topic_name)"/>
       <arg name="input/pointcloud" value="$(var input/pointcloud)"/>
       <arg name="output/objects" value="$(var irregular_object_pipeline/output/objects)"/>
+      <arg name="irregular_object_detector_param_path" value="$(var irregular_object_detector_param_path)"/>
     </include>
   </group>
   <group if="$(var switch/detector/lidar_dnn)">

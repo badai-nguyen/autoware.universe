@@ -11,7 +11,7 @@
   <arg name="object_recognition_detection_object_merger_distance_threshold_list_path"/>
   <arg name="object_recognition_detection_fusion_sync_param_path"/>
   <arg name="object_recognition_detection_roi_cluster_fusion_param_path"/>
-  <arg name="object_recognition_detection_roi_pointcloud_fusion_param_path"/>
+  <arg name="object_recognition_detection_irregular_object_detector_param_path"/>
   <arg name="object_recognition_detection_roi_detected_object_fusion_param_path"/>
   <arg name="object_recognition_detection_lidar_model_param_path"/>
   <arg name="object_recognition_detection_radar_lanelet_filtering_range_param_path"/>
@@ -247,7 +247,7 @@
           <arg name="input/radar" value="$(var input/radar)"/>
           <arg name="sync_param_path" value="$(var object_recognition_detection_fusion_sync_param_path)"/>
           <arg name="roi_cluster_fusion_param_path" value="$(var object_recognition_detection_roi_cluster_fusion_param_path)"/>
-          <arg name="roi_pointcloud_fusion_param_path" value="$(var object_recognition_detection_roi_pointcloud_fusion_param_path)"/>
+          <arg name="irregular_object_detector_param_path" value="$(var object_recognition_detection_irregular_object_detector_param_path)"/>
           <arg name="roi_detected_object_fusion_param_path" value="$(var object_recognition_detection_roi_detected_object_fusion_param_path)"/>
           <arg name="lidar_model_param_path" value="$(var object_recognition_detection_lidar_model_param_path)"/>
           <arg name="euclidean_param_path" value="$(var object_recognition_detection_euclidean_cluster_param_path)"/>
