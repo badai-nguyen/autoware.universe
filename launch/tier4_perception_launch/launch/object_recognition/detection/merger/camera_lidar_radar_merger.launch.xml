@@ -124,7 +124,6 @@
     </node>
   </group>
 
-
   <!-- 1st merger -->
   <group>
     <include file="$(find-pkg-share autoware_object_merger)/launch/object_association_merger.launch.xml">
