@@ -268,6 +268,7 @@
           <arg name="use_object_filter" value="$(var use_object_filter)"/>
           <arg name="objects_filter_method" value="$(var objects_filter_method)"/>
           <arg name="use_irregular_object_detector" value="$(var use_irregular_object_detector)"/>
+          <arg name="image_topic_name" value="$(var image_topic_name)"/>
         </include>
       </group>
 
