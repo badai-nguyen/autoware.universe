@@ -325,6 +325,7 @@
       <arg name="objects_filter_method" value="$(var objects_filter_method)"/>
       <arg name="roi_detected_object_fusion_param_path" value="$(var roi_detected_object_fusion_param_path)"/>
       <arg name="use_irregular_object_detector" value="$(var switch/detector/irregular_object)"/>
+      <arg name="detected_irregular_object/output/objects" value="$(var irregular_object_pipeline/output/objects)"/>
     </include>
   </group>
 
