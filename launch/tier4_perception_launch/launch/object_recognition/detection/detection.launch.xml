@@ -82,7 +82,7 @@
   <let name="switch/detector/radar_only" value="false"/>
   <let name="switch/detector/tracker_based" value="false"/>
   <let name="switch/detector/tracker_based" value="true" if="$(var use_detection_by_tracker)"/>
-  <let name="switch/detector/small_objects" value="$(var use_irregular_object_detector)"/>
+  <let name="switch/detector/irregular_object" value="$(var use_irregular_object_detector)"/>
 
   <let name="switch/filter/pointcloud" value="false"/>
   <let name="switch/filter/camera_lidar_object" value="false"/>
@@ -183,7 +183,7 @@
     </include>
   </group>
 
-  <group if="$(var switch/detector/small_objects)">
+  <group if="$(var switch/detector/irregular_object)">
     <!-- Small unknown object detector -->
     <include file="$(find-pkg-share tier4_perception_launch)/launch/object_recognition/detection/detector/camera_lidar_irregular_object_detector.launch.xml">
       <arg name="ns" value="$(var ns)"/>
