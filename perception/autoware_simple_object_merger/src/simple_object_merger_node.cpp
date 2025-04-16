@@ -108,6 +108,7 @@ SimpleObjectMergerNode::SimpleObjectMergerNode(const rclcpp::NodeOptions & node_
       &SimpleObjectMergerNode::approximateMerger, this, std::placeholders::_1,
       std::placeholders::_2));
   } else {
+    // Trigger the process by timer
     sub_objects_array.resize(input_topic_size);
     objects_data_.resize(input_topic_size);
 
