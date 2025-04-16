@@ -61,11 +61,11 @@ private:
   using Sync = message_filters::Synchronizer<SyncPolicy>;
   typename std::shared_ptr<Sync> sync_ptr_;
 
+  // Process callbacks
   void approximateMerger(
     const DetectedObjects::ConstSharedPtr & object_msg0,
     const DetectedObjects::ConstSharedPtr & object_msg1);
 
-  // Callback
   void onData(const DetectedObjects::ConstSharedPtr msg, size_t array_number);
 
   // Data Buffer
