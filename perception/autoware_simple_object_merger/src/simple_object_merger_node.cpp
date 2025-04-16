@@ -120,7 +120,7 @@ SimpleObjectMergerNode::SimpleObjectMergerNode(const rclcpp::NodeOptions & node_
         create_subscription<DetectedObjects>(node_param_.topic_names.at(i), rclcpp::QoS{1}, func);
     }
 
-    // Timer
+    // process callback
     const auto update_period_ns = rclcpp::Rate(node_param_.update_rate_hz).period();
     timer_ = rclcpp::create_timer(
       this, get_clock(), update_period_ns, std::bind(&SimpleObjectMergerNode::onTimer, this));
