@@ -112,6 +112,7 @@ SimpleObjectMergerNode::SimpleObjectMergerNode(const rclcpp::NodeOptions & node_
     sub_objects_array.resize(input_topic_size);
     objects_data_.resize(input_topic_size);
 
+    // subscriber
     for (size_t i = 0; i < input_topic_size; i++) {
       std::function<void(const DetectedObjects::ConstSharedPtr msg)> func =
         std::bind(&SimpleObjectMergerNode::onData, this, std::placeholders::_1, i);
