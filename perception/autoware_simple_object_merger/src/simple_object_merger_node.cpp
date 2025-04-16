@@ -100,7 +100,7 @@ SimpleObjectMergerNode::SimpleObjectMergerNode(const rclcpp::NodeOptions & node_
   // Subscriber
   transform_listener_ = std::make_shared<autoware_utils::TransformListener>(this);
   if (input_topic_size == 2) {
-    // Subscriber
+    // Trigger the process and publish by message_filter
     input0_.subscribe(this, node_param_.topic_names.at(0), rclcpp::QoS{1}.get_rmw_qos_profile());
     input1_.subscribe(this, node_param_.topic_names.at(1), rclcpp::QoS{1}.get_rmw_qos_profile());
     sync_ptr_ = std::make_shared<Sync>(SyncPolicy(10), input0_, input1_);
