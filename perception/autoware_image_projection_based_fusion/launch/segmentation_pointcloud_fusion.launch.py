@@ -44,7 +44,6 @@ class SegmentationPointcloudFusion:
         mask_timestamp_offsets = []
         approximate_camera_projection = []
         rois_timestamp_noise_window = []
-        approximate_camera_projection = []
         point_project_to_unrectified_image = []
         image_topic_name = LaunchConfiguration("image_topic_name")
 
