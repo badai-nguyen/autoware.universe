@@ -14,7 +14,8 @@
 
 #include "autoware/pointcloud_preprocessor/outlier_filter/dual_return_outlier_filter_node.hpp"
 
-#include "autoware/point_types/types.hpp"
+#include <nebula_common/nebula_common.hpp>
+#include <nebula_common/point_types.hpp>
 
 #include <std_msgs/msg/header.hpp>
 
@@ -28,8 +29,8 @@
 
 namespace autoware::pointcloud_preprocessor
 {
-using autoware::point_types::PointXYZIRCAEDT;
-using autoware::point_types::ReturnType;
+using nebula::drivers::PointXYZIRCAEDT;
+using nebula::drivers::ReturnType;
 using diagnostic_msgs::msg::DiagnosticStatus;
 
 DualReturnOutlierFilterComponent::DualReturnOutlierFilterComponent(
@@ -143,7 +144,7 @@ void DualReturnOutlierFilterComponent::filter(
 
   // Split into 36 x 10 degree bins x 40 lines (TODO: change to dynamic)
   for (const auto & p : pcl_input->points) {
-    if (p.return_type == ReturnType::DUAL_WEAK_FIRST) {
+    if (p.return_type == ReturnType::FIRST_STRONGEST || p.return_type == ReturnType::LAST_STRONGEST) {
       weak_first_pcl_input_ring_array.at(p.channel).push_back(p);
     } else {
       pcl_input_ring_array.at(p.channel).push_back(p);

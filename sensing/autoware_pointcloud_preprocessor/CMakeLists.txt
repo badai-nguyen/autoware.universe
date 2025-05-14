@@ -22,6 +22,7 @@ include_directories(
   ${EIGEN3_INCLUDE_DIRS}
   ${Sophus_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
+  ${nebula_common_INCLUDE_DIRS}
 )
 
 add_library(pointcloud_preprocessor_filter_base SHARED
@@ -33,6 +34,7 @@ target_include_directories(pointcloud_preprocessor_filter_base PUBLIC
   "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>"
   "$<INSTALL_INTERFACE:include/${PROJECT_NAME}>"
   ${autoware_point_types_INCLUDE_DIRS}
+  ${nebula_common_INCLUDE_DIRS}
 )
 
 ament_target_dependencies(pointcloud_preprocessor_filter_base
@@ -45,6 +47,7 @@ ament_target_dependencies(pointcloud_preprocessor_filter_base
   autoware_utils
   pcl_ros
   autoware_point_types
+  nebula_common
 )
 
 add_library(faster_voxel_grid_downsample_filter SHARED
