@@ -143,13 +143,18 @@ void DualReturnOutlierFilterComponent::filter(
   weak_first_pcl_input_ring_array.resize(vertical_bins);
 
   // Split into 36 x 10 degree bins x 40 lines (TODO: change to dynamic)
+  size_t weak_points_nb = 0;
   for (const auto & p : pcl_input->points) {
-    if (p.return_type == ReturnType::FIRST_STRONGEST || p.return_type == ReturnType::LAST_STRONGEST) {
+    //RCLCPP_INFO(get_logger(),"return type: %u",p.return_type);
+    if (p.return_type == static_cast<uint8_t>(ReturnType::SECONDSTRONGEST)) {
       weak_first_pcl_input_ring_array.at(p.channel).push_back(p);
+      weak_points_nb += 1;
     } else {
       pcl_input_ring_array.at(p.channel).push_back(p);
     }
   }
+
+  RCLCPP_WARN(get_logger(),"nb of weak pointclouds: %lu, nb of strong points: %lu", weak_points_nb,  pcl_input->points.size() - weak_points_nb);
 
   float max_azimuth_diff = max_azimuth_diff_;
   cv::Mat frequency_image(cv::Size(horizontal_bins, vertical_bins), CV_8UC1, cv::Scalar(0));
@@ -164,114 +169,17 @@ void DualReturnOutlierFilterComponent::filter(
 
     bool keep_next = false;
     uint ring_id = weak_first_single_ring.points.front().channel;
+    std::vector<int> noise_frequency(horizontal_bins, 0);
     for (auto iter = std::begin(weak_first_single_ring) + 1;
          iter != std::end(weak_first_single_ring) - 1; ++iter) {
-      const float min_dist = std::min(iter->distance, (iter + 1)->distance);
-      const float max_dist = std::max(iter->distance, (iter + 1)->distance);
-      float azimuth_diff = (iter + 1)->azimuth - iter->azimuth;
-      azimuth_diff = azimuth_diff < 0.f ? azimuth_diff + 2 * M_PI : azimuth_diff;
-
-      if (max_dist < min_dist * weak_first_distance_ratio_ && azimuth_diff < max_azimuth_diff) {
-        temp_segment.points.push_back(*iter);
-        keep_next = true;
-      } else if (keep_next) {
-        temp_segment.points.push_back(*iter);
-        keep_next = false;
-        // Analyze segment points here
-      } else {
-        // Log the deleted azimuth and its distance for analysis
-        switch (roi_mode_map_[roi_mode_]) {
-          case 1:  // base_link xyz-ROI
-          {
-            if (
-              iter->x > x_min_ && iter->x < x_max_ && iter->y > y_min_ && iter->y < y_max_ &&
-              iter->z > z_min_ && iter->z < z_max_) {
-              deleted_azimuths.push_back(iter->azimuth < 0.f ? 0.f : iter->azimuth);
-              deleted_distances.push_back(iter->distance);
-              noise_output->points.push_back(*iter);
-            }
-            break;
-          }
-          case 2: {
-            if (
-              iter->azimuth > min_azimuth && iter->azimuth < max_azimuth &&
-              iter->distance < max_distance_) {
-              deleted_azimuths.push_back(iter->azimuth < 0.f ? 0.f : iter->azimuth);
-              noise_output->points.push_back(*iter);
-              deleted_distances.push_back(iter->distance);
-            }
-            break;
-          }
-          default: {
-            deleted_azimuths.push_back(iter->azimuth < 0.f ? 0.f : iter->azimuth);
-            deleted_distances.push_back(iter->distance);
-            noise_output->points.push_back(*iter);
-            break;
-          }
-        }
-      }
+      auto azimuth = iter->azimuth;
+      auto horizontal_idx = static_cast<int>((azimuth - min_azimuth)/horizontal_resolution);
+      frequency_image.at<uchar>(ring_id, horizontal_idx) +=1;
     }
     // Analyze last segment points here
-    std::vector<int> noise_frequency(horizontal_bins, 0);
     uint current_deleted_index = 0;
     uint current_temp_segment_index = 0;
-    for (uint i = 0; i < noise_frequency.size() - 1; i++) {
-      if (deleted_azimuths.size() == 0) {
-        continue;
-      }
-      while (current_deleted_index < deleted_azimuths.size() &&
-             (uint)deleted_azimuths[current_deleted_index] <
-               ((i + static_cast<uint>(min_azimuth / horizontal_resolution) + 1) *
-                horizontal_resolution)) {
-        noise_frequency[i] = noise_frequency[i] + 1;
-        current_deleted_index++;
-      }
-      if (temp_segment.points.size() > 0) {
-        while ((temp_segment.points[current_temp_segment_index].azimuth < 0.f
-                  ? 0.f
-                  : temp_segment.points[current_temp_segment_index].azimuth) <
-                 ((i + 1 + static_cast<uint>(min_azimuth / horizontal_resolution)) *
-                  horizontal_resolution) &&
-               current_temp_segment_index < (temp_segment.points.size() - 1)) {
-          if (noise_frequency[i] < weak_first_local_noise_threshold_) {
-            pcl_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-          } else {
-            switch (roi_mode_map_[roi_mode_]) {
-              case 1: {
-                if (
-                  temp_segment.points[current_temp_segment_index].x < x_max_ &&
-                  temp_segment.points[current_temp_segment_index].x > x_min_ &&
-                  temp_segment.points[current_temp_segment_index].y > y_max_ &&
-                  temp_segment.points[current_temp_segment_index].y < y_min_ &&
-                  temp_segment.points[current_temp_segment_index].z < z_max_ &&
-                  temp_segment.points[current_temp_segment_index].z > z_min_) {
-                  noise_frequency[i] = noise_frequency[i] + 1;
-                  noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-                }
-                break;
-              }
-              case 2: {
-                if (
-                  temp_segment.points[current_temp_segment_index].azimuth < max_azimuth &&
-                  temp_segment.points[current_temp_segment_index].azimuth > min_azimuth &&
-                  temp_segment.points[current_temp_segment_index].distance < max_distance_) {
-                  noise_frequency[i] = noise_frequency[i] + 1;
-                  noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-                }
-                break;
-              }
-              default: {
-                noise_frequency[i] = noise_frequency[i] + 1;
-                noise_output->points.push_back(temp_segment.points[current_temp_segment_index]);
-                break;
-              }
-            }
-          }
-          current_temp_segment_index++;
-          frequency_image.at<uchar>(ring_id, i) = noise_frequency[i];
-        }
-      }
-    }
+    
   }
 
   // Ring outlier filter for normal points
